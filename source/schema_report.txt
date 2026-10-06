@@ -1,0 +1,331 @@
+=====================================================================================
+BÁO CÁO PHÂN TÍCH SCHEMA & KHÓA GHÉP NỐI (HOME CREDIT DEFAULT RISK)
+=====================================================================================
+• Bảng chính (Main DataFrame): application_train
+• Số lượng bảng phân tích: 6
+
+1. TỔNG QUAN KÍCH THƯỚC (SHAPE & MEMORY)
+-------------------------------------------------------------------------------------
+STT  | Tên Bảng                   |      Số Dòng |   Số Cột |  Dung Lượng (MB)
+-------------------------------------------------------------------------------------
+1    | application_train (MAIN)   |      307,511 |      122 |           504.99 MB
+2    | bureau                     |    1,716,428 |       17 |           472.82 MB
+3    | credit_card_balance        |    3,840,312 |       23 |           846.39 MB
+4    | installments_payments      |   13,605,401 |        8 |           830.41 MB
+5    | POS_CASH_balance           |   10,001,358 |        8 |          1060.95 MB
+6    | previous_application       |    1,670,214 |       37 |          1703.01 MB
+-------------------------------------------------------------------------------------
+
+2. PHÂN TÍCH CẶP KHÓA GHÉP NỐI (JOIN KEYS) VỚI BẢNG CHÍNH
+-------------------------------------------------------------------------------------
+▶ Bảng chính [application_train]  <--->  Bảng phụ [bureau] (1,716,428 dòng, 17 cột):
+   • Khóa ghép: `SK_ID_CURR`
+     - Kiểu dữ liệu: Main=[int64], Sub=[int64] -> Đồng nhất
+     - Số unique : Main=307,511 / Sub=305,811
+     - Bản số (Cardinality): 1 : N (Cần Aggregate trước khi merge)
+
+▶ Bảng chính [application_train]  <--->  Bảng phụ [credit_card_balance] (3,840,312 dòng, 23 cột):
+   • Khóa ghép: `SK_ID_CURR`
+     - Kiểu dữ liệu: Main=[int64], Sub=[int64] -> Đồng nhất
+     - Số unique : Main=307,511 / Sub=103,558
+     - Bản số (Cardinality): 1 : N (Cần Aggregate trước khi merge)
+
+▶ Bảng chính [application_train]  <--->  Bảng phụ [installments_payments] (13,605,401 dòng, 8 cột):
+   • Khóa ghép: `SK_ID_CURR`
+     - Kiểu dữ liệu: Main=[int64], Sub=[int64] -> Đồng nhất
+     - Số unique : Main=307,511 / Sub=339,587
+     - Bản số (Cardinality): 1 : N (Cần Aggregate trước khi merge)
+
+▶ Bảng chính [application_train]  <--->  Bảng phụ [POS_CASH_balance] (10,001,358 dòng, 8 cột):
+   • Khóa ghép: `SK_ID_CURR`
+     - Kiểu dữ liệu: Main=[int64], Sub=[int64] -> Đồng nhất
+     - Số unique : Main=307,511 / Sub=337,252
+     - Bản số (Cardinality): 1 : N (Cần Aggregate trước khi merge)
+
+▶ Bảng chính [application_train]  <--->  Bảng phụ [previous_application] (1,670,214 dòng, 37 cột):
+   • Khóa ghép: `SK_ID_CURR`
+     - Kiểu dữ liệu: Main=[int64], Sub=[int64] -> Đồng nhất
+     - Số unique : Main=307,511 / Sub=338,857
+     - Bản số (Cardinality): 1 : N (Cần Aggregate trước khi merge)
+
+3. KIỂM TRA TRÙNG TÊN CỘT (COLUMN OVERLAPS / CONFLICTS)
+-------------------------------------------------------------------------------------
+A. Xung đột giữa Bảng chính và Bảng phụ (Nguy cơ sinh đuôi _x, _y khi merge):
+   • [application_train] vs [bureau] trùng 1 cột ngoài khóa:
+     - `AMT_ANNUITY` (float64)
+   • [application_train] vs [previous_application] trùng 7 cột ngoài khóa:
+     - `AMT_ANNUITY` (float64)
+     - `AMT_CREDIT` (float64)
+     - `AMT_GOODS_PRICE` (float64)
+     - `HOUR_APPR_PROCESS_START` (int64)
+     - `NAME_CONTRACT_TYPE` (object)
+     - `NAME_TYPE_SUITE` (object)
+     - `WEEKDAY_APPR_PROCESS_START` (object)
+
+B. Cột trùng tên chéo giữa các Bảng phụ (Cần lưu ý khi feature engineering):
+   • [bureau] vs [credit_card_balance] trùng 1 cột: ['SK_ID_CURR']
+   • [bureau] vs [installments_payments] trùng 1 cột: ['SK_ID_CURR']
+   • [bureau] vs [POS_CASH_balance] trùng 1 cột: ['SK_ID_CURR']
+   • [bureau] vs [previous_application] trùng 2 cột: ['AMT_ANNUITY', 'SK_ID_CURR']
+   • [credit_card_balance] vs [installments_payments] trùng 2 cột: ['SK_ID_CURR', 'SK_ID_PREV']
+   • [credit_card_balance] vs [POS_CASH_balance] trùng 6 cột: ['MONTHS_BALANCE', 'NAME_CONTRACT_STATUS', 'SK_DPD', 'SK_DPD_DEF', 'SK_ID_CURR', 'SK_ID_PREV']
+   • [credit_card_balance] vs [previous_application] trùng 3 cột: ['NAME_CONTRACT_STATUS', 'SK_ID_CURR', 'SK_ID_PREV']
+   • [installments_payments] vs [POS_CASH_balance] trùng 2 cột: ['SK_ID_CURR', 'SK_ID_PREV']
+   • [installments_payments] vs [previous_application] trùng 2 cột: ['SK_ID_CURR', 'SK_ID_PREV']
+   • [POS_CASH_balance] vs [previous_application] trùng 3 cột: ['NAME_CONTRACT_STATUS', 'SK_ID_CURR', 'SK_ID_PREV']
+
+4. CHI TIẾT SCHEMA TỪNG BẢNG (Tên Cột, Dtype, Unique, Null Count, % Null)
+-------------------------------------------------------------------------------------
+
+[BẢNG: application_train] - Shape: (307,511 dòng, 122 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_CURR                       | int64        |    307,511 |            0 |    0.00%
+2    | TARGET                           | int64        |          2 |            0 |    0.00%
+3    | NAME_CONTRACT_TYPE               | object       |          2 |            0 |    0.00%
+4    | CODE_GENDER                      | object       |          3 |            0 |    0.00%
+5    | FLAG_OWN_CAR                     | object       |          2 |            0 |    0.00%
+6    | FLAG_OWN_REALTY                  | object       |          2 |            0 |    0.00%
+7    | CNT_CHILDREN                     | int64        |         15 |            0 |    0.00%
+8    | AMT_INCOME_TOTAL                 | float64      |      2,548 |            0 |    0.00%
+9    | AMT_CREDIT                       | float64      |      5,603 |            0 |    0.00%
+10   | AMT_ANNUITY                      | float64      |     13,672 |           12 |    0.00%
+11   | AMT_GOODS_PRICE                  | float64      |      1,002 |          278 |    0.09%
+12   | NAME_TYPE_SUITE                  | object       |          7 |        1,292 |    0.42%
+13   | NAME_INCOME_TYPE                 | object       |          8 |            0 |    0.00%
+14   | NAME_EDUCATION_TYPE              | object       |          5 |            0 |    0.00%
+15   | NAME_FAMILY_STATUS               | object       |          6 |            0 |    0.00%
+16   | NAME_HOUSING_TYPE                | object       |          6 |            0 |    0.00%
+17   | REGION_POPULATION_RELATIVE       | float64      |         81 |            0 |    0.00%
+18   | DAYS_BIRTH                       | int64        |     17,460 |            0 |    0.00%
+19   | DAYS_EMPLOYED                    | int64        |     12,574 |            0 |    0.00%
+20   | DAYS_REGISTRATION                | float64      |     15,688 |            0 |    0.00%
+21   | DAYS_ID_PUBLISH                  | int64        |      6,168 |            0 |    0.00%
+22   | OWN_CAR_AGE                      | float64      |         62 |      202,929 |   65.99%
+23   | FLAG_MOBIL                       | int64        |          2 |            0 |    0.00%
+24   | FLAG_EMP_PHONE                   | int64        |          2 |            0 |    0.00%
+25   | FLAG_WORK_PHONE                  | int64        |          2 |            0 |    0.00%
+26   | FLAG_CONT_MOBILE                 | int64        |          2 |            0 |    0.00%
+27   | FLAG_PHONE                       | int64        |          2 |            0 |    0.00%
+28   | FLAG_EMAIL                       | int64        |          2 |            0 |    0.00%
+29   | OCCUPATION_TYPE                  | object       |         18 |       96,391 |   31.35%
+30   | CNT_FAM_MEMBERS                  | float64      |         17 |            2 |    0.00%
+31   | REGION_RATING_CLIENT             | int64        |          3 |            0 |    0.00%
+32   | REGION_RATING_CLIENT_W_CITY      | int64        |          3 |            0 |    0.00%
+33   | WEEKDAY_APPR_PROCESS_START       | object       |          7 |            0 |    0.00%
+34   | HOUR_APPR_PROCESS_START          | int64        |         24 |            0 |    0.00%
+35   | REG_REGION_NOT_LIVE_REGION       | int64        |          2 |            0 |    0.00%
+36   | REG_REGION_NOT_WORK_REGION       | int64        |          2 |            0 |    0.00%
+37   | LIVE_REGION_NOT_WORK_REGION      | int64        |          2 |            0 |    0.00%
+38   | REG_CITY_NOT_LIVE_CITY           | int64        |          2 |            0 |    0.00%
+39   | REG_CITY_NOT_WORK_CITY           | int64        |          2 |            0 |    0.00%
+40   | LIVE_CITY_NOT_WORK_CITY          | int64        |          2 |            0 |    0.00%
+41   | ORGANIZATION_TYPE                | object       |         58 |            0 |    0.00%
+42   | EXT_SOURCE_1                     | float64      |    114,584 |      173,378 |   56.38%
+43   | EXT_SOURCE_2                     | float64      |    119,831 |          660 |    0.21%
+44   | EXT_SOURCE_3                     | float64      |        814 |       60,965 |   19.83%
+45   | APARTMENTS_AVG                   | float64      |      2,339 |      156,061 |   50.75%
+46   | BASEMENTAREA_AVG                 | float64      |      3,780 |      179,943 |   58.52%
+47   | YEARS_BEGINEXPLUATATION_AVG      | float64      |        285 |      150,007 |   48.78%
+48   | YEARS_BUILD_AVG                  | float64      |        149 |      204,488 |   66.50%
+49   | COMMONAREA_AVG                   | float64      |      3,181 |      214,865 |   69.87%
+50   | ELEVATORS_AVG                    | float64      |        257 |      163,891 |   53.30%
+51   | ENTRANCES_AVG                    | float64      |        285 |      154,828 |   50.35%
+52   | FLOORSMAX_AVG                    | float64      |        403 |      153,020 |   49.76%
+53   | FLOORSMIN_AVG                    | float64      |        305 |      208,642 |   67.85%
+54   | LANDAREA_AVG                     | float64      |      3,527 |      182,590 |   59.38%
+55   | LIVINGAPARTMENTS_AVG             | float64      |      1,868 |      210,199 |   68.35%
+56   | LIVINGAREA_AVG                   | float64      |      5,199 |      154,350 |   50.19%
+57   | NONLIVINGAPARTMENTS_AVG          | float64      |        386 |      213,514 |   69.43%
+58   | NONLIVINGAREA_AVG                | float64      |      3,290 |      169,682 |   55.18%
+59   | APARTMENTS_MODE                  | float64      |        760 |      156,061 |   50.75%
+60   | BASEMENTAREA_MODE                | float64      |      3,841 |      179,943 |   58.52%
+61   | YEARS_BEGINEXPLUATATION_MODE     | float64      |        221 |      150,007 |   48.78%
+62   | YEARS_BUILD_MODE                 | float64      |        154 |      204,488 |   66.50%
+63   | COMMONAREA_MODE                  | float64      |      3,128 |      214,865 |   69.87%
+64   | ELEVATORS_MODE                   | float64      |         26 |      163,891 |   53.30%
+65   | ENTRANCES_MODE                   | float64      |         30 |      154,828 |   50.35%
+66   | FLOORSMAX_MODE                   | float64      |         25 |      153,020 |   49.76%
+67   | FLOORSMIN_MODE                   | float64      |         25 |      208,642 |   67.85%
+68   | LANDAREA_MODE                    | float64      |      3,563 |      182,590 |   59.38%
+69   | LIVINGAPARTMENTS_MODE            | float64      |        736 |      210,199 |   68.35%
+70   | LIVINGAREA_MODE                  | float64      |      5,301 |      154,350 |   50.19%
+71   | NONLIVINGAPARTMENTS_MODE         | float64      |        167 |      213,514 |   69.43%
+72   | NONLIVINGAREA_MODE               | float64      |      3,327 |      169,682 |   55.18%
+73   | APARTMENTS_MEDI                  | float64      |      1,148 |      156,061 |   50.75%
+74   | BASEMENTAREA_MEDI                | float64      |      3,772 |      179,943 |   58.52%
+75   | YEARS_BEGINEXPLUATATION_MEDI     | float64      |        245 |      150,007 |   48.78%
+76   | YEARS_BUILD_MEDI                 | float64      |        151 |      204,488 |   66.50%
+77   | COMMONAREA_MEDI                  | float64      |      3,202 |      214,865 |   69.87%
+78   | ELEVATORS_MEDI                   | float64      |         46 |      163,891 |   53.30%
+79   | ENTRANCES_MEDI                   | float64      |         46 |      154,828 |   50.35%
+80   | FLOORSMAX_MEDI                   | float64      |         49 |      153,020 |   49.76%
+81   | FLOORSMIN_MEDI                   | float64      |         47 |      208,642 |   67.85%
+82   | LANDAREA_MEDI                    | float64      |      3,560 |      182,590 |   59.38%
+83   | LIVINGAPARTMENTS_MEDI            | float64      |      1,097 |      210,199 |   68.35%
+84   | LIVINGAREA_MEDI                  | float64      |      5,281 |      154,350 |   50.19%
+85   | NONLIVINGAPARTMENTS_MEDI         | float64      |        214 |      213,514 |   69.43%
+86   | NONLIVINGAREA_MEDI               | float64      |      3,323 |      169,682 |   55.18%
+87   | FONDKAPREMONT_MODE               | object       |          4 |      210,295 |   68.39%
+88   | HOUSETYPE_MODE                   | object       |          3 |      154,297 |   50.18%
+89   | TOTALAREA_MODE                   | float64      |      5,116 |      148,431 |   48.27%
+90   | WALLSMATERIAL_MODE               | object       |          7 |      156,341 |   50.84%
+91   | EMERGENCYSTATE_MODE              | object       |          2 |      145,755 |   47.40%
+92   | OBS_30_CNT_SOCIAL_CIRCLE         | float64      |         33 |        1,021 |    0.33%
+93   | DEF_30_CNT_SOCIAL_CIRCLE         | float64      |         10 |        1,021 |    0.33%
+94   | OBS_60_CNT_SOCIAL_CIRCLE         | float64      |         33 |        1,021 |    0.33%
+95   | DEF_60_CNT_SOCIAL_CIRCLE         | float64      |          9 |        1,021 |    0.33%
+96   | DAYS_LAST_PHONE_CHANGE           | float64      |      3,773 |            1 |    0.00%
+97   | FLAG_DOCUMENT_2                  | int64        |          2 |            0 |    0.00%
+98   | FLAG_DOCUMENT_3                  | int64        |          2 |            0 |    0.00%
+99   | FLAG_DOCUMENT_4                  | int64        |          2 |            0 |    0.00%
+100  | FLAG_DOCUMENT_5                  | int64        |          2 |            0 |    0.00%
+101  | FLAG_DOCUMENT_6                  | int64        |          2 |            0 |    0.00%
+102  | FLAG_DOCUMENT_7                  | int64        |          2 |            0 |    0.00%
+103  | FLAG_DOCUMENT_8                  | int64        |          2 |            0 |    0.00%
+104  | FLAG_DOCUMENT_9                  | int64        |          2 |            0 |    0.00%
+105  | FLAG_DOCUMENT_10                 | int64        |          2 |            0 |    0.00%
+106  | FLAG_DOCUMENT_11                 | int64        |          2 |            0 |    0.00%
+107  | FLAG_DOCUMENT_12                 | int64        |          2 |            0 |    0.00%
+108  | FLAG_DOCUMENT_13                 | int64        |          2 |            0 |    0.00%
+109  | FLAG_DOCUMENT_14                 | int64        |          2 |            0 |    0.00%
+110  | FLAG_DOCUMENT_15                 | int64        |          2 |            0 |    0.00%
+111  | FLAG_DOCUMENT_16                 | int64        |          2 |            0 |    0.00%
+112  | FLAG_DOCUMENT_17                 | int64        |          2 |            0 |    0.00%
+113  | FLAG_DOCUMENT_18                 | int64        |          2 |            0 |    0.00%
+114  | FLAG_DOCUMENT_19                 | int64        |          2 |            0 |    0.00%
+115  | FLAG_DOCUMENT_20                 | int64        |          2 |            0 |    0.00%
+116  | FLAG_DOCUMENT_21                 | int64        |          2 |            0 |    0.00%
+117  | AMT_REQ_CREDIT_BUREAU_HOUR       | float64      |          5 |       41,519 |   13.50%
+118  | AMT_REQ_CREDIT_BUREAU_DAY        | float64      |          9 |       41,519 |   13.50%
+119  | AMT_REQ_CREDIT_BUREAU_WEEK       | float64      |          9 |       41,519 |   13.50%
+120  | AMT_REQ_CREDIT_BUREAU_MON        | float64      |         24 |       41,519 |   13.50%
+121  | AMT_REQ_CREDIT_BUREAU_QRT        | float64      |         11 |       41,519 |   13.50%
+122  | AMT_REQ_CREDIT_BUREAU_YEAR       | float64      |         25 |       41,519 |   13.50%
+
+[BẢNG: bureau] - Shape: (1,716,428 dòng, 17 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_CURR                       | int64        |    305,811 |            0 |    0.00%
+2    | SK_ID_BUREAU                     | int64        |  1,716,428 |            0 |    0.00%
+3    | CREDIT_ACTIVE                    | object       |          4 |            0 |    0.00%
+4    | CREDIT_CURRENCY                  | object       |          4 |            0 |    0.00%
+5    | DAYS_CREDIT                      | int64        |      2,923 |            0 |    0.00%
+6    | CREDIT_DAY_OVERDUE               | int64        |        942 |            0 |    0.00%
+7    | DAYS_CREDIT_ENDDATE              | float64      |     14,096 |      105,553 |    6.15%
+8    | DAYS_ENDDATE_FACT                | float64      |      2,917 |      633,653 |   36.92%
+9    | AMT_CREDIT_MAX_OVERDUE           | float64      |     68,251 |    1,124,488 |   65.51%
+10   | CNT_CREDIT_PROLONG               | int64        |         10 |            0 |    0.00%
+11   | AMT_CREDIT_SUM                   | float64      |    236,708 |           13 |    0.00%
+12   | AMT_CREDIT_SUM_DEBT              | float64      |    226,537 |      257,669 |   15.01%
+13   | AMT_CREDIT_SUM_LIMIT             | float64      |     51,726 |      591,780 |   34.48%
+14   | AMT_CREDIT_SUM_OVERDUE           | float64      |      1,616 |            0 |    0.00%
+15   | CREDIT_TYPE                      | object       |         15 |            0 |    0.00%
+16   | DAYS_CREDIT_UPDATE               | int64        |      2,982 |            0 |    0.00%
+17   | AMT_ANNUITY                      | float64      |     40,321 |    1,226,791 |   71.47%
+
+[BẢNG: credit_card_balance] - Shape: (3,840,312 dòng, 23 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_PREV                       | int64        |    104,307 |            0 |    0.00%
+2    | SK_ID_CURR                       | int64        |    103,558 |            0 |    0.00%
+3    | MONTHS_BALANCE                   | int64        |         96 |            0 |    0.00%
+4    | AMT_BALANCE                      | float64      |  1,347,904 |            0 |    0.00%
+5    | AMT_CREDIT_LIMIT_ACTUAL          | int64        |        181 |            0 |    0.00%
+6    | AMT_DRAWINGS_ATM_CURRENT         | float64      |      2,267 |      749,816 |   19.52%
+7    | AMT_DRAWINGS_CURRENT             | float64      |    187,005 |            0 |    0.00%
+8    | AMT_DRAWINGS_OTHER_CURRENT       | float64      |      1,832 |      749,816 |   19.52%
+9    | AMT_DRAWINGS_POS_CURRENT         | float64      |    168,748 |      749,816 |   19.52%
+10   | AMT_INST_MIN_REGULARITY          | float64      |    312,266 |      305,236 |    7.95%
+11   | AMT_PAYMENT_CURRENT              | float64      |    163,209 |      767,988 |   20.00%
+12   | AMT_PAYMENT_TOTAL_CURRENT        | float64      |    182,957 |            0 |    0.00%
+13   | AMT_RECEIVABLE_PRINCIPAL         | float64      |  1,195,839 |            0 |    0.00%
+14   | AMT_RECIVABLE                    | float64      |  1,338,878 |            0 |    0.00%
+15   | AMT_TOTAL_RECEIVABLE             | float64      |  1,339,008 |            0 |    0.00%
+16   | CNT_DRAWINGS_ATM_CURRENT         | float64      |         44 |      749,816 |   19.52%
+17   | CNT_DRAWINGS_CURRENT             | int64        |        129 |            0 |    0.00%
+18   | CNT_DRAWINGS_OTHER_CURRENT       | float64      |         11 |      749,816 |   19.52%
+19   | CNT_DRAWINGS_POS_CURRENT         | float64      |        133 |      749,816 |   19.52%
+20   | CNT_INSTALMENT_MATURE_CUM        | float64      |        121 |      305,236 |    7.95%
+21   | NAME_CONTRACT_STATUS             | object       |          7 |            0 |    0.00%
+22   | SK_DPD                           | int64        |        917 |            0 |    0.00%
+23   | SK_DPD_DEF                       | int64        |        378 |            0 |    0.00%
+
+[BẢNG: installments_payments] - Shape: (13,605,401 dòng, 8 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_PREV                       | int64        |    997,752 |            0 |    0.00%
+2    | SK_ID_CURR                       | int64        |    339,587 |            0 |    0.00%
+3    | NUM_INSTALMENT_VERSION           | float64      |         65 |            0 |    0.00%
+4    | NUM_INSTALMENT_NUMBER            | int64        |        277 |            0 |    0.00%
+5    | DAYS_INSTALMENT                  | float64      |      2,922 |            0 |    0.00%
+6    | DAYS_ENTRY_PAYMENT               | float64      |      3,039 |        2,905 |    0.02%
+7    | AMT_INSTALMENT                   | float64      |    902,539 |            0 |    0.00%
+8    | AMT_PAYMENT                      | float64      |    944,235 |        2,905 |    0.02%
+
+[BẢNG: POS_CASH_balance] - Shape: (10,001,358 dòng, 8 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_PREV                       | int64        |    936,325 |            0 |    0.00%
+2    | SK_ID_CURR                       | int64        |    337,252 |            0 |    0.00%
+3    | MONTHS_BALANCE                   | int64        |         96 |            0 |    0.00%
+4    | CNT_INSTALMENT                   | float64      |         73 |       26,071 |    0.26%
+5    | CNT_INSTALMENT_FUTURE            | float64      |         79 |       26,087 |    0.26%
+6    | NAME_CONTRACT_STATUS             | object       |          9 |            0 |    0.00%
+7    | SK_DPD                           | int64        |      3,400 |            0 |    0.00%
+8    | SK_DPD_DEF                       | int64        |      2,307 |            0 |    0.00%
+
+[BẢNG: previous_application] - Shape: (1,670,214 dòng, 37 cột)
+STT  | Tên Cột                          | Dtype        |     Unique |      Số Null |   % Null
+-------------------------------------------------------------------------------------
+1    | SK_ID_PREV                       | int64        |  1,670,214 |            0 |    0.00%
+2    | SK_ID_CURR                       | int64        |    338,857 |            0 |    0.00%
+3    | NAME_CONTRACT_TYPE               | object       |          4 |            0 |    0.00%
+4    | AMT_ANNUITY                      | float64      |    357,959 |      372,235 |   22.29%
+5    | AMT_APPLICATION                  | float64      |     93,885 |            0 |    0.00%
+6    | AMT_CREDIT                       | float64      |     86,803 |            1 |    0.00%
+7    | AMT_DOWN_PAYMENT                 | float64      |     29,278 |      895,844 |   53.64%
+8    | AMT_GOODS_PRICE                  | float64      |     93,885 |      385,515 |   23.08%
+9    | WEEKDAY_APPR_PROCESS_START       | object       |          7 |            0 |    0.00%
+10   | HOUR_APPR_PROCESS_START          | int64        |         24 |            0 |    0.00%
+11   | FLAG_LAST_APPL_PER_CONTRACT      | object       |          2 |            0 |    0.00%
+12   | NFLAG_LAST_APPL_IN_DAY           | int64        |          2 |            0 |    0.00%
+13   | RATE_DOWN_PAYMENT                | float64      |    207,033 |      895,844 |   53.64%
+14   | RATE_INTEREST_PRIMARY            | float64      |        148 |    1,664,263 |   99.64%
+15   | RATE_INTEREST_PRIVILEGED         | float64      |         25 |    1,664,263 |   99.64%
+16   | NAME_CASH_LOAN_PURPOSE           | object       |         25 |            0 |    0.00%
+17   | NAME_CONTRACT_STATUS             | object       |          4 |            0 |    0.00%
+18   | DAYS_DECISION                    | int64        |      2,922 |            0 |    0.00%
+19   | NAME_PAYMENT_TYPE                | object       |          4 |            0 |    0.00%
+20   | CODE_REJECT_REASON               | object       |          9 |            0 |    0.00%
+21   | NAME_TYPE_SUITE                  | object       |          7 |      820,405 |   49.12%
+22   | NAME_CLIENT_TYPE                 | object       |          4 |            0 |    0.00%
+23   | NAME_GOODS_CATEGORY              | object       |         28 |            0 |    0.00%
+24   | NAME_PORTFOLIO                   | object       |          5 |            0 |    0.00%
+25   | NAME_PRODUCT_TYPE                | object       |          3 |            0 |    0.00%
+26   | CHANNEL_TYPE                     | object       |          8 |            0 |    0.00%
+27   | SELLERPLACE_AREA                 | int64        |      2,097 |            0 |    0.00%
+28   | NAME_SELLER_INDUSTRY             | object       |         11 |            0 |    0.00%
+29   | CNT_PAYMENT                      | float64      |         49 |      372,230 |   22.29%
+30   | NAME_YIELD_GROUP                 | object       |          5 |            0 |    0.00%
+31   | PRODUCT_COMBINATION              | object       |         17 |          346 |    0.02%
+32   | DAYS_FIRST_DRAWING               | float64      |      2,838 |      673,065 |   40.30%
+33   | DAYS_FIRST_DUE                   | float64      |      2,892 |      673,065 |   40.30%
+34   | DAYS_LAST_DUE_1ST_VERSION        | float64      |      4,605 |      673,065 |   40.30%
+35   | DAYS_LAST_DUE                    | float64      |      2,873 |      673,065 |   40.30%
+36   | DAYS_TERMINATION                 | float64      |      2,830 |      673,065 |   40.30%
+37   | NFLAG_INSURED_ON_APPROVAL        | float64      |          2 |      673,065 |   40.30%
+
+=====================================================================================
+5. KHUYẾN NGHỊ KỸ THUẬT (MERGE STRATEGY RECOMMENDATIONS)
+=====================================================================================
+1. Tránh Nối Trực Tiếp (Zero-Direct-Merge):
+   - Mọi quan hệ giữa application_train và 5 bảng phụ đều là 1 : N (1 hồ sơ có nhiều khoản vay/giao dịch).
+   - Nối trực tiếp bằng `pd.merge()` sẽ gây BÙNG NỔ DÒNG (Row Explosion) từ 307K dòng lên hàng chục triệu dòng!
+2. Quy Tắc Aggregation Bắt Buộc:
+   - Luôn `groupby('SK_ID_CURR')` và tính toán thống kê (min, max, mean, sum, count, std) trên bảng phụ trước.
+   - Sau khi gom về đúng 1 dòng / 1 SK_ID_CURR, mới tiến hành `merge(how='left', on='SK_ID_CURR')` vào bảng chính.
+3. Xử Lý Trùng Tên Cột:
+   - Đặt tiền tố/hậu tố rõ ràng cho các đặc trưng sau aggregation (ví dụ: `BUREAU_AMT_CREDIT_MEAN`, `PREV_AMT_CREDIT_SUM`)
+   - Tránh để phát sinh các cột `_x`, `_y` không rõ ngữ cảnh.
+=====================================================================================
