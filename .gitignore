@@ -10,6 +10,12 @@ __pycache__/
 *.parquet
 data/raw/
 
+# Bỏ qua thư mục Đề bài và các tài liệu
+Đề bài/
+*.docx
+*.pdf
+nhật ký làm việc.md
+
 # C extensions
 *.so
 
