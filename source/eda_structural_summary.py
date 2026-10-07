@@ -10,7 +10,11 @@ Mô tả: Khám phá cấu trúc sơ bộ của tập dữ liệu sau ghép nố
 
 import sys
 from pathlib import Path
+from typing import Optional, Union
 import pandas as pd
+
+# Số lượng khách hàng ban đầu
+DEFAULT_EXPECTED_GRAIN_ROWS: int = 307_511
 
 # Đảm bảo console Windows in tiếng Việt chuẩn Unicode
 if sys.platform.startswith("win"):
@@ -23,7 +27,10 @@ if sys.platform.startswith("win"):
         pass
 
 
-def explore_merged_dataset(parquet_path: str = "train_merged_final.parquet"):
+def explore_merged_dataset(
+    parquet_path: Union[str, Path] = "train_merged_final.parquet",
+    expected_rows: Optional[int] = DEFAULT_EXPECTED_GRAIN_ROWS,
+) -> pd.DataFrame:
     p = Path(parquet_path)
     if not p.exists():
         candidate = Path(__file__).resolve().parent.parent / "train_merged_final.parquet"
@@ -45,7 +52,19 @@ def explore_merged_dataset(parquet_path: str = "train_merged_final.parquet"):
     print("-" * 85)
     print(f"• Số lượng dòng (Hồ sơ khách hàng): {n_rows:,d} dòng")
     print(f"• Số lượng cột  (Tổng đặc trưng)  : {n_cols:,d} cột")
-    print(f"• Bảo toàn grain: Đúng 307,511 dòng (Zero fan-out / 1 khách hàng = 1 dòng)")
+
+    # Kiểm tra bảo toàn grain động (Zero fan-out: 1 khách hàng = 1 dòng)
+    is_unique_grain = (
+        df["SK_ID_CURR"].nunique() == n_rows if "SK_ID_CURR" in df.columns else True
+    )
+    is_expected_rows = (n_rows == expected_rows) if expected_rows is not None else True
+
+    if is_unique_grain and is_expected_rows:
+        print(f"• Bảo toàn grain: Đúng {n_rows:,d} dòng (Zero fan-out / 1 khách hàng = 1 dòng)")
+    elif not is_unique_grain:
+        print(f"• CẢNH BÁO GRAIN: Bị trùng lặp khách hàng ({df['SK_ID_CURR'].nunique():,d} unique / {n_rows:,d} dòng)")
+    else:
+        print(f"• CẢNH BÁO GRAIN: Số dòng thực tế ({n_rows:,d}) khác kỳ vọng ({expected_rows:,d} dòng)")
 
     # 3. Tiêu thụ bộ nhớ
     print("\n2. MỨC TIÊU THỤ BỘ NHỚ (MEMORY USAGE & DTYPES)")
@@ -75,7 +94,11 @@ def explore_merged_dataset(parquet_path: str = "train_merged_final.parquet"):
     avail_num = [c for c in key_num if c in df.columns]
     desc = df[avail_num].describe().T[["count", "mean", "std", "min", "25%", "50%", "75%", "max"]]
     desc.columns = ["Count", "Mean", "Std", "Min", "Q1 (25%)", "Median (50%)", "Q3 (75%)", "Max"]
-    print(desc.to_string())
+    desc["Count"] = desc["Count"].astype("int64")
+
+    # Chỉ định dạng riêng cột Max với dấu phân cách hàng nghìn (triệt tiêu e+xx), các cột khác giữ nguyên độ chính xác
+    print(desc.to_string(formatters={"Max": lambda x: f"{x:,.2f}" if pd.notnull(x) else ""}))
+   
 
     # 5. Phân phối tần số cho biến định tính
     print("\n4. PHÂN PHỐI TẦN SỐ CỦA CÁC BIẾN ĐỊNH TÍNH CỐT LÕI")
@@ -95,6 +118,7 @@ def explore_merged_dataset(parquet_path: str = "train_merged_final.parquet"):
     print("\n" + "=" * 85)
     print("✓ HOÀN TẤT KHÁM PHÁ CẤU TRÚC SƠ BỘ")
     print("=" * 85)
+    return df
 
 
 if __name__ == "__main__":
