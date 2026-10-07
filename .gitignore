@@ -16,6 +16,9 @@ data/raw/
 *.pdf
 nhật ký làm việc.md
 
+# Bỏ qua thư viện bên thứ ba
+.quarto/
+
 # C extensions
 *.so
 
