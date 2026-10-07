@@ -20,6 +20,9 @@ nhật ký làm việc.md
 # Bỏ qua thư viện bên thứ ba
 .quarto/
 
+# Bỏ qua Skill cài sẵn
+.agent/
+
 # C extensions
 *.so
 
