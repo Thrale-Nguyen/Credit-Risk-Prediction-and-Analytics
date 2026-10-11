@@ -42,6 +42,7 @@ from source.data_cleaning import (
     TreeCleaningPipeline,
     get_lightgbm_data,
     get_catboost_data,
+    detect_categorical_columns,
     CATEGORICAL_COLS,
 )
 
@@ -156,9 +157,10 @@ def run_tree_cleaning_pipeline(
             print(f"  -> [✗ CẢNH BÁO] Lỗi khởi tạo LightGBM: {e}")
 
         # Test Adapter 2: CatBoost
-        X_tr_cb, y_tr_cb, X_va_cb, y_va_cb, cat_features = get_catboost_data(
+        X_tr_cb, y_tr_cb, X_va_cb, y_va_cb = get_catboost_data(
             sample_df, test_size=0.2, random_state=42, verbose=False
         )
+        cat_features = detect_categorical_columns(X_tr_cb)
         print(f"• CatBoost Adapter: {len(cat_features)} cột cat_features | X_train={X_tr_cb.shape}, X_val={X_va_cb.shape}")
 
         try:
