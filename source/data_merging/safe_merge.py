@@ -1,5 +1,6 @@
 """
 Module: safe_merge.py
+Package: source.data_merging
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
 Mô tả: Hàm merge an toàn giữa bảng chính (application_train) và bảng đặc trưng phụ,
        kiểm soát nghiêm ngặt bẫy bùng nổ dòng (Row Explosion) và xung đột cột (_x, _y).

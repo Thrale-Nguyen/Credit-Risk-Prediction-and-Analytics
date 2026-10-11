@@ -1,5 +1,6 @@
 """
 Module: eda_structural_summary.py
+Package: source.data_merging
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
 Mô tả: Khám phá cấu trúc sơ bộ của tập dữ liệu sau ghép nối train_merged_final.parquet:
        1. Kích thước (shape)
@@ -33,10 +34,18 @@ def explore_merged_dataset(
 ) -> pd.DataFrame:
     p = Path(parquet_path)
     if not p.exists():
-        candidate = Path(__file__).resolve().parent.parent / "train_merged_final.parquet"
-        if candidate.exists():
-            p = candidate
-        else:
+        candidate_paths = [
+            Path("train_merged_final.parquet"),
+            Path(__file__).resolve().parent.parent.parent / "train_merged_final.parquet" if "__file__" in globals() else None,
+            Path(__file__).resolve().parent.parent / "train_merged_final.parquet" if "__file__" in globals() else None,
+        ]
+        found = False
+        for c in candidate_paths:
+            if c and c.exists():
+                p = c
+                found = True
+                break
+        if not found:
             raise FileNotFoundError(f"Không tìm thấy file: {parquet_path}")
 
     print("=" * 85)
@@ -98,7 +107,6 @@ def explore_merged_dataset(
 
     # Chỉ định dạng riêng cột Max với dấu phân cách hàng nghìn (triệt tiêu e+xx), các cột khác giữ nguyên độ chính xác
     print(desc.to_string(formatters={"Max": lambda x: f"{x:,.2f}" if pd.notnull(x) else ""}))
-   
 
     # 5. Phân phối tần số cho biến định tính
     print("\n4. PHÂN PHỐI TẦN SỐ CỦA CÁC BIẾN ĐỊNH TÍNH CỐT LÕI")

@@ -1,5 +1,6 @@
 """
 Module: flatten_aggregated_df.py
+Package: source.data_merging
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
 Mô tả: Chuẩn hóa schema sau khi aggregate: Làm phẳng MultiIndex, gắn tiền tố bảng
        và phục hồi khóa chính SK_ID_CURR về cột dữ liệu 1:1.

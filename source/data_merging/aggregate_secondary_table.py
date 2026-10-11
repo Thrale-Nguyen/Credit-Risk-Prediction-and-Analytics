@@ -1,5 +1,6 @@
 """
 Module: aggregate_secondary_table.py
+Package: source.data_merging
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
 Mô tả: Hàm aggregate dữ liệu từ bảng phụ (bureau, previous_application, POS_CASH,
        installments, credit_card) về cấp độ khách hàng SK_ID_CURR (quan hệ 1 : 1).
@@ -8,6 +9,7 @@ Mô tả: Hàm aggregate dữ liệu từ bảng phụ (bureau, previous_applica
 import gc
 import sys
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
@@ -207,11 +209,19 @@ def aggregate_secondary_table(
 
 
 if __name__ == "__main__":
-    # Demo thử nghiệm với bảng previous_application nếu có sẵn
-    from pathlib import Path
+    # Demo thử nghiệm với bảng previous_application hoặc bureau nếu có sẵn
+    candidate_paths = [
+        Path("Dataset - Home Credit Default Risk") / "bureau.csv",
+        Path(__file__).resolve().parent.parent.parent / "Dataset - Home Credit Default Risk" / "bureau.csv",
+        Path(__file__).resolve().parent.parent / "Dataset - Home Credit Default Risk" / "bureau.csv",
+    ]
+    sample_csv = None
+    for p in candidate_paths:
+        if p.exists():
+            sample_csv = p
+            break
 
-    sample_csv = Path(__file__).resolve().parent.parent / "Dataset - Home Credit Default Risk" / "bureau.csv"
-    if sample_csv.exists():
+    if sample_csv:
         print(f"Thử nghiệm đọc 1,000 dòng từ {sample_csv.name}...")
         sample_df = pd.read_csv(sample_csv, nrows=1000)
         res = aggregate_secondary_table(sample_df, verbose=True)

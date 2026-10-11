@@ -1,5 +1,6 @@
 """
 Module: merge_pipeline.py
+Package: source.data_merging
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
 Mô tả: Pipeline ghép nối tuần tự 5 bảng phụ vào application_train với kiểm soát
        toàn vẹn dòng (chống fan-out), kiểm tra xung đột cột (_x, _y), downcast bộ nhớ
