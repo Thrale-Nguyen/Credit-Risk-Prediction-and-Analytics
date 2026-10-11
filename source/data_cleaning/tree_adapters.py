@@ -16,7 +16,7 @@ Mô tả: Bộ điều hợp dữ liệu chuyên biệt (Adapters) cho LightGBM 
 
 import re
 import sys
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union, overload
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -76,6 +76,45 @@ def detect_categorical_columns(df: pd.DataFrame) -> List[str]:
         and (isinstance(df[c].dtype, pd.CategoricalDtype) or df[c].dtype == "object")
     ]
     return list(dict.fromkeys(found + other_obj))
+
+
+@overload
+def get_lightgbm_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: Literal[True] = True,
+    verbose: bool = True,
+) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]: ...
+
+
+@overload
+def get_lightgbm_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: Literal[False] = ...,
+    verbose: bool = True,
+) -> pd.DataFrame: ...
+
+
+@overload
+def get_lightgbm_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: bool = True,
+    verbose: bool = True,
+) -> Union[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series], pd.DataFrame]: ...
 
 
 def get_lightgbm_data(
@@ -167,6 +206,33 @@ def get_lightgbm_data(
     return X_train, y_train, X_val, y_val
 
 
+@overload
+def get_catboost_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: Literal[True] = True,
+    verbose: bool = True,
+) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]: ...
+
+
+@overload
+def get_catboost_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: Literal[False] = ...,
+    verbose: bool = True,
+) -> pd.DataFrame: ...
+
+
+@overload
 def get_catboost_data(
     df: pd.DataFrame,
     target_col: str = "TARGET",
@@ -176,13 +242,24 @@ def get_catboost_data(
     sanitize_names: bool = True,
     return_splits: bool = True,
     verbose: bool = True,
-) -> Union[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, List[str]], Tuple[pd.DataFrame, List[str]]]:
+) -> Union[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series], pd.DataFrame]: ...
+
+
+def get_catboost_data(
+    df: pd.DataFrame,
+    target_col: str = "TARGET",
+    id_col: Optional[str] = "SK_ID_CURR",
+    test_size: float = 0.2,
+    random_state: int = 42,
+    sanitize_names: bool = True,
+    return_splits: bool = True,
+    verbose: bool = True,
+) -> Union[Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series], pd.DataFrame]:
     """
     Chuẩn bị dữ liệu đầu ra chuyên biệt cho CatBoost:
     - Chuẩn hóa tên đặc trưng an toàn (Sanitize Feature Names).
     - Giữ nguyên các biến phân loại ở định dạng chuỗi (string) và điền nhãn 'Missing'
       cho các giá trị rỗng để CatBoost xử lý tối ưu qua Ordered Target Statistics.
-    - Xuất kèm danh sách `cat_features` (danh sách tên cột) để truyền vào Pool(..., cat_features=...).
     - Giữ nguyên các giá trị np.nan ở các biến định lượng (CatBoost NanMode: 'Min' hoặc 'Max').
     - Phân chia tập huấn luyện và kiểm định phân tầng (Stratified Split).
 
@@ -201,13 +278,13 @@ def get_catboost_data(
     sanitize_names : bool, default True
         Nếu True, chuẩn hóa tên đặc trưng đồng bộ.
     return_splits : bool, default True
-        Nếu True, trả về (X_train, y_train, X_val, y_val, cat_features).
+        Nếu True, trả về (X_train, y_train, X_val, y_val). Nếu False, trả về df đã chuyển đổi.
     verbose : bool, default True
         Nếu True, in chi tiết thông số.
 
     Returns:
     --------
-    Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, List[str]]
+    Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series] HOẶC pd.DataFrame
     """
     df_cb = df.copy()
 
@@ -221,7 +298,7 @@ def get_catboost_data(
         df_cb[c] = df_cb[c].fillna("Missing").astype(str)
 
     if not return_splits:
-        return df_cb, cat_cols
+        return df_cb
 
     # Tách X và y
     drop_cols = [c for c in [target_col, id_col] if c and c in df_cb.columns]
@@ -253,4 +330,4 @@ def get_catboost_data(
         print(f"• Trạng thái tương thích            : Sẵn sàng nạp vào cb.Pool(..., cat_features=cat_features)")
         print("-" * 80)
 
-    return X_train, y_train, X_val, y_val, cat_cols
+    return X_train, y_train, X_val, y_val
