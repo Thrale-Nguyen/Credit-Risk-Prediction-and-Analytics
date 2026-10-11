@@ -2,15 +2,18 @@
 Module: anomalies.py
 Package: source.data_cleaning
 Dự án: PRJ-01 - Dự đoán Rủi ro Vỡ nợ Tín dụng (Home Credit Default Risk)
-Mô tả: Bước 1 trong pipeline làm sạch dữ liệu:
-       - Xử lý giá trị bất thường đặc thù nghiệp vụ (Business Anomalies).
-       - Nhận diện giá trị dị thường DAYS_EMPLOYED = 365243 (mã hóa người nghỉ hưu/thất nghiệp).
-       - Tạo biến cờ phân loại DAYS_EMPLOYED_ANOM (1 nếu bằng 365243, ngược lại 0).
-       - Thay thế giá trị 365243 trong DAYS_EMPLOYED bằng np.nan để phục vụ điền trung vị ở bước sau.
+Mô tả: Bước 2 trong pipeline làm sạch dữ liệu:
+       - Xử lý giá trị bất thường đặc thù nghiệp vụ (Business Anomalies):
+         + Nhận diện giá trị dị thường DAYS_EMPLOYED = 365243 (mã hóa người nghỉ hưu/thất nghiệp).
+         + Tạo biến cờ phân loại DAYS_EMPLOYED_ANOM (1 nếu bằng 365243, ngược lại 0).
+         + Thay thế giá trị 365243 trong DAYS_EMPLOYED bằng np.nan để mô hình cây tự xử lý.
+         + Thay thế giá trị 365243 trong các cột lịch sử đơn vay (PREV_DAYS_*) thành np.nan.
+       - Chốt chặn 4: Quy đổi các giá trị thời gian âm (DAYS_*) thành số dương (abs):
+         + Trực quan hóa và hỗ trợ phân tích EDA, trích xuất Feature Importance và SHAP Values.
 """
 
 import sys
-from typing import Tuple
+from typing import List, Optional
 import numpy as np
 import pandas as pd
 
@@ -30,65 +33,93 @@ def handle_business_anomalies(
     target_col: str = "DAYS_EMPLOYED",
     anom_value: float = 365243.0,
     flag_col: str = "DAYS_EMPLOYED_ANOM",
+    convert_negative_days: bool = True,
+    days_cols_to_invert: Optional[List[str]] = None,
     verbose: bool = True,
 ) -> pd.DataFrame:
     """
-    Xử lý giá trị bất thường nghiệp vụ đối với biến DAYS_EMPLOYED:
-    - Nhận diện giá trị 365243 (khoảng 1000 năm, giá trị gán cứng đại diện cho người nghỉ hưu/thất nghiệp).
-    - Tạo biến cờ phân loại flag_col: 1 nếu bằng 365243, 0 nếu là giá trị thực tế khác.
-    - Thay thế 365243 trong target_col bằng np.nan.
+    Xử lý dị thường nghiệp vụ và chuẩn hóa trục thời gian cho mô hình dạng cây:
+    1. Nhận diện giá trị 365243 trong DAYS_EMPLOYED (đại diện người nghỉ hưu/thất nghiệp).
+    2. Tạo biến cờ phân loại flag_col: 1 nếu bằng 365243, 0 nếu là giá trị thực tế khác.
+    3. Thay thế 365243 trong DAYS_EMPLOYED bằng np.nan (bảo toàn cơ chế Native Missing của LightGBM/CatBoost).
+    4. Thay thế giá trị kỹ thuật 365243 trong các cột lịch sử hợp đồng cũ (PREV_DAYS_*) thành np.nan.
+    5. Chốt chặn 4: Quy đổi các giá trị thời gian âm trong các cột DAYS_* thành số dương (abs)
+       giúp biểu diễn trực giác khoảng cách thời gian đã trôi qua.
 
     Parameters:
     -----------
     df : pd.DataFrame
-        DataFrame đầu vào.
+        DataFrame đầu vào cần xử lý dị thường.
     target_col : str, default 'DAYS_EMPLOYED'
-        Tên cột chứa giá trị bất thường cần xử lý.
+        Tên cột số ngày làm việc chứa giá trị dị thường 365243.
     anom_value : float, default 365243.0
-        Giá trị bất thường đặc thù nghiệp vụ.
+        Giá trị kỹ thuật dị thường quy ước.
     flag_col : str, default 'DAYS_EMPLOYED_ANOM'
-        Tên biến cờ chỉ báo được tạo mới.
+        Tên cột cờ phân loại dị thường được tạo mới.
+    convert_negative_days : bool, default True
+        Nếu True, chuyển đổi toàn bộ các cột thời gian quá khứ mang giá trị âm sang số dương.
+    days_cols_to_invert : Optional[List[str]], default None
+        Danh sách cột DAYS_ cần đảo dấu. Nếu None, tự động quét tất cả các cột chứa 'DAYS_' có giá trị âm.
     verbose : bool, default True
-        Nếu True, in chi tiết log kiểm tra (Validation Summary).
+        Nếu True, in chi tiết log kiểm tra và số lượng bản ghi bị ảnh hưởng.
 
     Returns:
     --------
     pd.DataFrame
-        DataFrame sau khi tạo biến cờ và thay thế giá trị dị thường bằng np.nan.
+        DataFrame đã được xử lý dị thường và chuyển đổi thời gian.
     """
-    if target_col not in df.columns:
+    # 1. Xử lý dị thường DAYS_EMPLOYED == 365243
+    if target_col in df.columns:
+        anom_mask = df[target_col] == anom_value
+        num_anom = int(anom_mask.sum())
+        total_rows = len(df)
+        pct_anom = (num_anom / total_rows) * 100 if total_rows > 0 else 0.0
+
+        # Tạo cờ nhị phân
+        df[flag_col] = anom_mask.astype(np.int8)
+
+        # Gán lại np.nan cho giá trị dị thường 365243
+        df.loc[anom_mask, target_col] = np.nan
+
         if verbose:
-            print(f"[CẢNH BÁO] Cột '{target_col}' không tồn tại trong dữ liệu. Bỏ qua Bước 1.")
-        return df
+            print(f"[DỊ THƯỜNG] Cột '{target_col}':")
+            print(f"  • Phát hiện: {num_anom:,} dòng ({pct_anom:.2f}%) mang giá trị dị thường {anom_value:,.0f}.")
+            print(f"  • Đã khởi tạo cờ '{flag_col}' (1: Dị thường, 0: Bình thường).")
+            print(f"  • Đã thay thế {anom_value:,.0f} trong '{target_col}' bằng np.nan (chuẩn bị cho LightGBM/CatBoost Native Missing).")
+    else:
+        if verbose:
+            print(f"[CẢNH BÁO] Không tìm thấy cột '{target_col}' trong DataFrame.")
 
-    # 1. Phát hiện và tạo cờ bất thường
-    anom_mask = (df[target_col] == anom_value)
-    anom_count = int(anom_mask.sum())
-    total_rows = len(df)
-    anom_pct = (anom_count / total_rows * 100.0) if total_rows > 0 else 0.0
+    # 2. Xử lý 365243 trong các cột bảng phụ PREV_DAYS_* (nếu có)
+    prev_days_cols = [c for c in df.columns if c.startswith("PREV_DAYS_") and "365243" not in c]
+    prev_anom_cleared = 0
+    for c in prev_days_cols:
+        p_mask = df[c] == anom_value
+        cnt = int(p_mask.sum())
+        if cnt > 0:
+            df.loc[p_mask, c] = np.nan
+            prev_anom_cleared += 1
 
-    # Gán cờ chỉ báo kiểu int32
-    df[flag_col] = anom_mask.astype(np.int32)
+    if verbose and prev_anom_cleared > 0:
+        print(f"  • Đã làm sạch mã dị thường {anom_value:,.0f} thành np.nan trong {prev_anom_cleared} cột PREV_DAYS_*.")
 
-    # 2. Thay thế giá trị dị thường bằng np.nan
-    df[target_col] = df[target_col].replace(anom_value, np.nan)
+    # 3. Chốt chặn 4: Dương hóa các đặc trưng thời gian quá khứ (DAYS_*)
+    if convert_negative_days:
+        if days_cols_to_invert is None:
+            # Tự động quét toàn bộ các cột DAYS_ có giá trị âm
+            days_candidates = [
+                c for c in df.columns
+                if "DAYS_" in c and pd.api.types.is_numeric_dtype(df[c])
+            ]
+            days_cols_to_invert = [
+                c for c in days_candidates
+                if (df[c] < 0).any()
+            ]
 
-    # 3. Log kiểm tra (Validation Summary)
-    if verbose:
-        null_count_after = int(df[target_col].isnull().sum())
-        rem_anom = int((df[target_col] == anom_value).sum())
-        flag_dist = df[flag_col].value_counts().to_dict()
+        for col in days_cols_to_invert:
+            df[col] = df[col].abs()
 
-        print("\n" + "=" * 80)
-        print("BƯỚC 1: XỬ LÝ GIÁ TRỊ BẤT THƯỜNG NGHIỆP VỤ (BUSINESS ANOMALIES)")
-        print("=" * 80)
-        print(f"• Cột kiểm tra                     : {target_col}")
-        print(f"• Giá trị bất thường nhận diện     : {anom_value:,.0f}")
-        print(f"• Số lượng bản ghi bất thường      : {anom_count:,d} / {total_rows:,d} dòng ({anom_pct:.2f}%)")
-        print(f"• Biến cờ mới tạo                  : {flag_col} (1: Bất thường, 0: Bình thường)")
-        print(f"  └ Phân phối cờ                   : Flag=1: {flag_dist.get(1, 0):,d} ({flag_dist.get(1, 0)/total_rows*100:.2f}%) | Flag=0: {flag_dist.get(0, 0):,d} ({flag_dist.get(0, 0)/total_rows*100:.2f}%)")
-        print(f"• Số lượng NaN mới trong {target_col:<10}: {null_count_after:,d} dòng")
-        print(f"• Kiểm tra số lượng {anom_value:,.0f} còn lại: {rem_anom} giá trị (Đã sạch hoàn toàn: {'✓ ĐẠT' if rem_anom == 0 else '✗ LỖI'})")
-        print("-" * 80)
+        if verbose:
+            print(f"[CHỐT CHẶN 4] Chuẩn hóa trục thời gian: Đã chuyển đổi {len(days_cols_to_invert)} cột 'DAYS_*' âm sang dương (abs).")
 
     return df

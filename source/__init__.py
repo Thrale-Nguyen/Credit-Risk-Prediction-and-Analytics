@@ -14,8 +14,13 @@ from .data_merging import (
     explore_merged_dataset,
 )
 
-# Giai đoạn 3: Tiền xử lý & Làm sạch dữ liệu (Data Cleaning)
+# Giai đoạn 3: Tiền xử lý & Làm sạch dữ liệu chuyên biệt cho LightGBM & CatBoost
 from .data_cleaning import (
+    clean_data_for_trees,
+    get_lightgbm_data,
+    get_catboost_data,
+    TreeCleaningPipeline,
+    CATEGORICAL_COLS,
     preprocess_data,
     DataCleaningPipeline,
 )
@@ -29,7 +34,12 @@ __all__ = [
     "sequential_merge_pipeline",
     "run_build_train_merged",
     "explore_merged_dataset",
-    # Data Cleaning
+    # Data Cleaning for Trees
+    "clean_data_for_trees",
+    "get_lightgbm_data",
+    "get_catboost_data",
+    "TreeCleaningPipeline",
+    "CATEGORICAL_COLS",
     "preprocess_data",
     "DataCleaningPipeline",
 ]
