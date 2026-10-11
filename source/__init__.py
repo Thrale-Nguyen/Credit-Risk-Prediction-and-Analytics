@@ -9,6 +9,7 @@ from .flatten_aggregated_df import flatten_aggregated_df
 from .safe_merge import safe_merge
 from .merge_pipeline import sequential_merge_pipeline
 from .build_train_merged import run_build_train_merged
+from .data_cleaning import preprocess_data, DataCleaningPipeline
 
 __all__ = [
     "inspect_schema_for_merge",
@@ -17,7 +18,10 @@ __all__ = [
     "safe_merge",
     "sequential_merge_pipeline",
     "run_build_train_merged",
+    "preprocess_data",
+    "DataCleaningPipeline",
 ]
+
 
 
 
