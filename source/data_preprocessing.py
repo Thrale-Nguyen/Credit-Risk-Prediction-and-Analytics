@@ -9,7 +9,7 @@ Mô tả: Điểm truy cập cấp cao (High-level Interface / Façade) phục v
        - Cung cấp hàm get_lightgbm_data(): Ép 16 biến phân loại sang pd.Categorical,
          chia Stratified Train/Val (X_train, y_train, X_val, y_val).
        - Cung cấp hàm get_catboost_data(): Giữ biến phân loại ở dạng string,
-         xuất cat_features và chia Stratified Train/Val (X_train, y_train, X_val, y_val, cat_features).
+         chia Stratified Train/Val (X_train, y_train, X_val, y_val).
 """
 
 from pathlib import Path
