@@ -24,6 +24,9 @@ nhật ký làm việc.md
 # Bỏ qua Skill cài sẵn
 .agent/
 
+# Bỏ qua Biểu đồ
+*.png
+
 # C extensions
 *.so
 
