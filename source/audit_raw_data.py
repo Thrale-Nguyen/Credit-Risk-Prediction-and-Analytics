@@ -70,7 +70,7 @@ def audit_single_file(filename: str):
     # 1. KÍCH THƯỚC FILE TRÊN ĐĨA
     old_size_mb = old_path.stat().st_size / (1024 * 1024) if old_path.exists() else 0
     raw_size_mb = raw_path.stat().st_size / (1024 * 1024)
-    print(f"• Dung lượng đĩa: Cũ (Old) = {old_size_mb:.2f} MB | Mới (Raw) = {raw_size_mb:.2f} MB (Chênh lệch: {raw_size_mb - old_size_mb:+.2f} MB)")
+    print(f"• Dung lượng đĩa: Old = {old_size_mb:.2f} MB | Raw = {raw_size_mb:.2f} MB (Chênh lệch: {raw_size_mb - old_size_mb:+.2f} MB)")
 
     # 2. ĐỌC DỮ LIỆU
     t0 = time.time()
