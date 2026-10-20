@@ -27,7 +27,7 @@ if sys.platform.startswith("win"):
     except Exception:
         pass
 
-# Import các thành phần cốt lõi từ package con data_cleaning
+# Import các thành phần cốt lõi từ package con data_cleaning trong archive_legacy
 from .data_cleaning import (
     CATEGORICAL_COLS,
     clean_data_for_trees,
