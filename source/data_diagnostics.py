@@ -61,7 +61,6 @@ EXPECTED_TABLES = [
     "POS_CASH_balance",
     "installments_payments",
     "credit_card_balance",
-    "bureau_balance",
 ]
 
 # Danh mục mở rộng toàn diện các ký hiệu missing ẩn / sentinel values
