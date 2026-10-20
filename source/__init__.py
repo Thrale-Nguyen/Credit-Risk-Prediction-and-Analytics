@@ -40,7 +40,16 @@ from .eda import (
     plot_loan_purpose_risk_ranking,
 )
 
+# Hệ thống Chẩn đoán Dữ liệu & Schema Tổng quát (Data Diagnostics Suite)
+from .data_diagnostics import (
+    diagnose_dataset,
+    audit_single_table_health,
+)
+
 __all__ = [
+    # Data Diagnostics
+    "diagnose_dataset",
+    "audit_single_table_health",
     # Data Merging
     "inspect_schema_for_merge",
     "aggregate_secondary_table",
