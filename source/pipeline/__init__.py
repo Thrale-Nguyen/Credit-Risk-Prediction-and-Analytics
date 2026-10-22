@@ -7,5 +7,6 @@ Mô tả: Quản lý quy trình xử lý dữ liệu tuyến tính 3 bước:
 """
 
 from .table_sanitizer import run_table_sanitizer
+from .merge_pipeline import run_merge_pipeline
 
-__all__ = ["run_table_sanitizer"]
+__all__ = ["run_table_sanitizer", "run_merge_pipeline"]

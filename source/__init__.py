@@ -10,7 +10,7 @@ from .data_diagnostics import (
 )
 
 # Giai đoạn 2: Quy trình Tiền xử lý & Ghép nối dữ liệu (Pipeline Tuyến tính)
-from .pipeline import run_table_sanitizer
+from .pipeline import run_table_sanitizer, run_merge_pipeline
 
 # Giai đoạn 4: Phân tích Khám phá Dữ liệu & Kể chuyện Rủi ro Tín dụng (EDA & Storytelling)
 from .eda import (
@@ -33,6 +33,7 @@ __all__ = [
     "audit_single_table_health",
     # Data Pipeline
     "run_table_sanitizer",
+    "run_merge_pipeline",
     # EDA & Storytelling
     "plot_target_imbalance",
     "plot_univariate_financial_distributions",
