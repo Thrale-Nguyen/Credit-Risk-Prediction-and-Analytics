@@ -9,6 +9,9 @@ from .data_diagnostics import (
     audit_single_table_health,
 )
 
+# Giai đoạn 2: Quy trình Tiền xử lý & Ghép nối dữ liệu (Pipeline Tuyến tính)
+from .pipeline import run_table_sanitizer
+
 # Giai đoạn 4: Phân tích Khám phá Dữ liệu & Kể chuyện Rủi ro Tín dụng (EDA & Storytelling)
 from .eda import (
     plot_target_imbalance,
@@ -28,6 +31,8 @@ __all__ = [
     # Data Diagnostics
     "diagnose_dataset",
     "audit_single_table_health",
+    # Data Pipeline
+    "run_table_sanitizer",
     # EDA & Storytelling
     "plot_target_imbalance",
     "plot_univariate_financial_distributions",
