@@ -9,8 +9,13 @@ from .data_diagnostics import (
     audit_single_table_health,
 )
 
-# Giai đoạn 2: Quy trình Tiền xử lý & Ghép nối dữ liệu (Pipeline Tuyến tính)
-from .pipeline import run_table_sanitizer, run_merge_pipeline
+# Giai đoạn 2 & 3: Quy trình Tiền xử lý & Ghép nối dữ liệu (Pipeline Tuyến tính)
+from .pipeline import (
+    run_table_sanitizer,
+    run_merge_pipeline,
+    run_tree_preprocessing,
+    get_lightgbm_data,
+)
 
 # Giai đoạn 4: Phân tích Khám phá Dữ liệu & Kể chuyện Rủi ro Tín dụng (EDA & Storytelling)
 from .eda import (
@@ -34,6 +39,8 @@ __all__ = [
     # Data Pipeline
     "run_table_sanitizer",
     "run_merge_pipeline",
+    "run_tree_preprocessing",
+    "get_lightgbm_data",
     # EDA & Storytelling
     "plot_target_imbalance",
     "plot_univariate_financial_distributions",

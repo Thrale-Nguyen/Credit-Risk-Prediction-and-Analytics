@@ -8,6 +8,7 @@ __pycache__/
 *.xlsx
 *.qmd
 *.parquet
+*.zip
 data/raw/
 
 # Bỏ qua thư mục Đề bài và các tài liệu
