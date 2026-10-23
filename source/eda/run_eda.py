@@ -88,9 +88,17 @@ def main():
     print("KHỞI CHẠY QUY TRÌNH PHÂN TÍCH KHÁM PHÁ DỮ LIỆU (EDA) - CRISP-DM GIAI ĐOẠN 4")
     print("=" * 85)
 
-    # 1. Xác định đường dẫn tệp dữ liệu
-    parquet_path = locate_file("train_merged_final.parquet")
-    prev_path = locate_file("Dataset - Home Credit Default Risk/previous_application.csv")
+    # 1. Xác định đường dẫn tệp dữ liệu (ưu tiên nạp từ data/processed/)
+    parquet_path = locate_file("data/processed/train_merged.parquet")
+    if not parquet_path.exists():
+        parquet_path = locate_file("train_merged_final.parquet")
+
+    prev_path = locate_file("data/processed/previous_application.parquet")
+    if not prev_path.exists():
+        prev_path = locate_file("data/raw/previous_application.csv")
+    if not prev_path.exists():
+        prev_path = locate_file("Dataset - Home Credit Default Risk/previous_application.csv")
+
     figures_dir = locate_file("figures")
     figures_dir.mkdir(parents=True, exist_ok=True)
 

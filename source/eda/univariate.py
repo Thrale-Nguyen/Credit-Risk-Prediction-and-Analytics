@@ -92,7 +92,7 @@ def plot_target_imbalance(
     # 2. Donut Chart
     wedges, texts, autotexts = axes[1].pie(
         counts.values,
-        labels=["Trả nợ tốt (91.93%)", "Vỡ nợ (8.07%)"],
+        labels=[f"Trả nợ tốt ({pct_good:.2f}%)", f"Vỡ nợ ({pct_bad:.2f}%)"],
         autopct="%1.2f%%",
         startangle=40,
         colors=colors,
@@ -111,7 +111,7 @@ def plot_target_imbalance(
     axes[1].text(
         0,
         0,
-        f"Mất cân bằng\n1 : {ratio:.1f}\n(8.07%)",
+        f"Mất cân bằng\n1 : {ratio:.1f}\n({pct_bad:.2f}%)",
         ha="center",
         va="center",
         fontsize=12,

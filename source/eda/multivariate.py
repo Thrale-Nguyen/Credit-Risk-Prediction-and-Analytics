@@ -45,7 +45,13 @@ def compute_multivariate_pivot_tables(
     """
     clean_df = df.copy()
     if "CODE_GENDER" in clean_df.columns:
-        clean_df = clean_df[clean_df["CODE_GENDER"] != "XNA"]
+        clean_df = clean_df[~clean_df["CODE_GENDER"].astype(str).str.upper().isin(["XNA", "NAN"])]
+        clean_df["CODE_GENDER"] = clean_df["CODE_GENDER"].astype(str).str.strip().str.upper()
+
+    for col in ["NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_CONTRACT_TYPE"]:
+        if col in clean_df.columns:
+            clean_df[col] = clean_df[col].astype(str).str.strip().str.title()
+            clean_df[col] = clean_df[col].replace({"Nan": np.nan, "Xna": np.nan, "Chưa Rõ": np.nan, "Chua Ro": np.nan})
 
     pivots = {}
 
@@ -152,14 +158,34 @@ def plot_multivariate_heatmaps(
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
 
+    edu_order = [
+        "Lower Secondary",
+        "Secondary / Secondary Special",
+        "Incomplete Higher",
+        "Higher Education",
+        "Academic Degree",
+    ]
+    major_incomes = [
+        "Working",
+        "Commercial Associate",
+        "State Servant",
+        "Pensioner",
+        "Unemployed",
+    ]
+
     # 1. Giới tính x Học vấn
     if "gender_education_rate" in pivots:
         df1 = pivots["gender_education_rate"]
+        cols1 = [c for c in edu_order if c in df1.columns]
+        if cols1:
+            df1 = df1[cols1]
         sns.heatmap(
             df1,
             annot=True,
             fmt=".2f",
             cmap="YlOrRd",
+            vmin=0.0,
+            vmax=16.0,
             linewidths=1.2,
             cbar_kws={"label": "Tỷ lệ vỡ nợ (%)"},
             ax=ax1,
@@ -170,24 +196,25 @@ def plot_multivariate_heatmaps(
         )
         ax1.set_ylabel("Giới tính (F: Nữ, M: Nam)", fontsize=10)
         ax1.set_xlabel("Trình độ học vấn", fontsize=10)
-        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=30, ha="right", fontsize=9)
+        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=25, ha="right", fontsize=9)
 
     # 2. Loại thu nhập x Học vấn
     if "income_education_rate" in pivots:
-        # Lọc các dòng chính yếu có số lượng mẫu đáng kể để biểu đồ sắc nét
-        major_incomes = [
-            "Working",
-            "Commercial associate",
-            "Pensioner",
-            "State servant",
-            "Unemployed",
-        ]
-        df2 = pivots["income_education_rate"].reindex(major_incomes).dropna(how="all")
+        df2 = pivots["income_education_rate"]
+        idx2 = [i for i in major_incomes if i in df2.index]
+        cols2 = [c for c in edu_order if c in df2.columns]
+        if idx2:
+            df2 = df2.reindex(index=idx2)
+        if cols2:
+            df2 = df2[[c for c in cols2 if c in df2.columns]]
+        df2 = df2.dropna(how="all")
         sns.heatmap(
             df2,
             annot=True,
             fmt=".2f",
             cmap="YlOrRd",
+            vmin=0.0,
+            vmax=16.0,
             linewidths=1.2,
             cbar_kws={"label": "Tỷ lệ vỡ nợ (%)"},
             ax=ax2,
@@ -200,16 +227,22 @@ def plot_multivariate_heatmaps(
         )
         ax2.set_ylabel("Nguồn thu nhập chính", fontsize=10)
         ax2.set_xlabel("Trình độ học vấn", fontsize=10)
-        ax2.set_xticklabels(ax2.get_xticklabels(), rotation=30, ha="right", fontsize=9)
+        ax2.set_xticklabels(ax2.get_xticklabels(), rotation=25, ha="right", fontsize=9)
 
     # 3. Loại thu nhập x Giới tính
     if "income_gender_rate" in pivots:
-        df3 = pivots["income_gender_rate"].reindex(major_incomes).dropna(how="all")
+        df3 = pivots["income_gender_rate"]
+        idx3 = [i for i in major_incomes if i in df3.index]
+        if idx3:
+            df3 = df3.reindex(index=idx3)
+        df3 = df3.dropna(how="all")
         sns.heatmap(
             df3,
             annot=True,
             fmt=".2f",
             cmap="YlOrRd",
+            vmin=0.0,
+            vmax=16.0,
             linewidths=1.2,
             cbar_kws={"label": "Tỷ lệ vỡ nợ (%)"},
             ax=ax3,
@@ -229,6 +262,8 @@ def plot_multivariate_heatmaps(
             annot=True,
             fmt=".2f",
             cmap="YlOrRd",
+            vmin=0.0,
+            vmax=16.0,
             linewidths=1.2,
             cbar_kws={"label": "Tỷ lệ vỡ nợ (%)"},
             ax=ax4,
@@ -271,18 +306,33 @@ def plot_loan_purpose_risk_ranking(
     prev_path = Path(prev_csv_path) if prev_csv_path else None
     if not prev_path or not prev_path.exists():
         # Tìm đường dẫn tương đối dự phòng
-        candidate = Path("..") / "Dataset - Home Credit Default Risk" / "previous_application.csv"
-        if candidate.exists():
-            prev_path = candidate
-        else:
+        candidates = [
+            Path("data/processed/previous_application.parquet"),
+            Path("data/raw/previous_application.csv"),
+            Path("..") / "Dataset - Home Credit Default Risk" / "previous_application.csv",
+        ]
+        found = False
+        for c in candidates:
+            if c.exists():
+                prev_path = c
+                found = True
+                break
+        if not found:
             print(f"! Cảnh báo: Không tìm thấy tệp {prev_csv_path}. Bỏ qua plot loan purpose.")
             return pd.DataFrame()
 
-    prev_df = pd.read_csv(
-        prev_path, usecols=["SK_ID_CURR", "NAME_CASH_LOAN_PURPOSE"]
-    )
-    # Loại trừ mã kỹ thuật không nêu mục đích cụ thể (XAP: Không áp dụng, XNA: Không xác định)
-    prev_filtered = prev_df[~prev_df["NAME_CASH_LOAN_PURPOSE"].isin(["XAP", "XNA"])]
+    if prev_path.suffix.lower() == ".parquet":
+        prev_df = pd.read_parquet(prev_path, columns=["SK_ID_CURR", "NAME_CASH_LOAN_PURPOSE"])
+    else:
+        prev_df = pd.read_csv(
+            prev_path, usecols=["SK_ID_CURR", "NAME_CASH_LOAN_PURPOSE"]
+        )
+
+    # Chuẩn hóa về Title Case để gộp các nhóm bị phân tán chữ hoa/thường (vd: Car repairs và CAR REPAIRS)
+    prev_df["NAME_CASH_LOAN_PURPOSE"] = prev_df["NAME_CASH_LOAN_PURPOSE"].astype(str).str.strip().str.title()
+    # Loại trừ mã kỹ thuật không nêu mục đích cụ thể (Xap, Xna, Chưa rõ)
+    invalid_purposes = {"Xap", "Xna", "Chưa Rõ", "Chua Ro", "Nan", ""}
+    prev_filtered = prev_df[~prev_df["NAME_CASH_LOAN_PURPOSE"].isin(invalid_purposes)]
 
     # Merge với bảng đơn vay chính
     merged = prev_filtered.merge(
@@ -302,6 +352,8 @@ def plot_loan_purpose_risk_ranking(
 
     fig, ax = plt.subplots(figsize=(14, 10))
 
+    baseline = float(app_df["TARGET"].mean() * 100)
+
     # Đổi màu cảnh báo theo ngưỡng rủi ro
     colors = [
         "#d9534f" if r >= 13.0 else ("#f4a261" if r >= 10.0 else "#2a9d8f")
@@ -316,13 +368,13 @@ def plot_loan_purpose_risk_ranking(
         height=0.65,
     )
 
-    # Đường mốc trung bình toàn danh mục 8.07%
+    # Đường mốc trung bình toàn danh mục động
     ax.axvline(
-        8.07,
+        baseline,
         color="#1d3557",
         linestyle="--",
         linewidth=2,
-        label="Tỷ lệ vỡ nợ trung bình danh mục (8.07%)",
+        label=f"Tỷ lệ vỡ nợ trung bình danh mục ({baseline:.2f}%)",
     )
 
     # Annotate giá trị trên từng thanh

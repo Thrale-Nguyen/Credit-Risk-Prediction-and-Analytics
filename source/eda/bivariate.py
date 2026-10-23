@@ -151,7 +151,7 @@ def plot_correlation_matrix_heatmap(
         fmt=".3f",
         cmap="coolwarm",
         vmin=-0.25,
-        vmax=0.40,
+        vmax=0.85,
         square=True,
         linewidths=1.0,
         cbar_kws={"shrink": 0.8, "label": "Hệ số tương quan Pearson (r)"},
@@ -214,6 +214,7 @@ def plot_external_sources_comparison(
         ax_kde.set_xlabel(f"Điểm số {col}", fontsize=10)
         ax_kde.set_ylabel("Mật độ phân phối", fontsize=10)
         ax_kde.legend(loc="upper left", frameon=True, fontsize=9)
+        ax_kde.set_xlim(0.0, 1.0)
         ax_kde.grid(alpha=0.3)
         ax_kde.spines["top"].set_visible(False)
         ax_kde.spines["right"].set_visible(False)
@@ -236,6 +237,7 @@ def plot_external_sources_comparison(
         ax_violin.set_xticklabels(["Trả nợ tốt (0)", "Vỡ nợ (1)"], fontsize=10, fontweight="bold")
         ax_violin.set_xlabel("Trạng thái thanh toán", fontsize=10)
         ax_violin.set_ylabel(f"Điểm số {col}", fontsize=10)
+        ax_violin.set_ylim(0.0, 1.0)
         ax_violin.grid(axis="y", alpha=0.3)
         ax_violin.spines["top"].set_visible(False)
         ax_violin.spines["right"].set_visible(False)
@@ -275,8 +277,9 @@ def plot_age_distribution_and_default_rate(
     labels = ["< 25", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "≥ 65"]
     df_calc["AGE_GROUP"] = pd.cut(df_calc["AGE_YEARS"], bins=bins, labels=labels, right=False)
 
-    age_stats = df_calc.groupby("AGE_GROUP")["TARGET"].agg(["count", "mean", "sum"]).reset_index()
+    age_stats = df_calc.groupby("AGE_GROUP", observed=False)["TARGET"].agg(["count", "mean", "sum"]).reset_index()
     age_stats["default_pct"] = age_stats["mean"] * 100
+    baseline = float(df_calc["TARGET"].mean() * 100)
 
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -307,7 +310,7 @@ def plot_age_distribution_and_default_rate(
     axes[0].spines["right"].set_visible(False)
 
     # 2. Tỷ lệ vỡ nợ theo từng nhóm tuổi (Default Rate by Age Group)
-    bar_colors = ["#d9534f" if r > 8.07 else "#2a9d8f" for r in age_stats["default_pct"]]
+    bar_colors = ["#d9534f" if r > baseline else "#2a9d8f" for r in age_stats["default_pct"]]
     bars = axes[1].bar(
         age_stats["AGE_GROUP"],
         age_stats["default_pct"],
@@ -316,13 +319,13 @@ def plot_age_distribution_and_default_rate(
         width=0.55,
     )
 
-    # Đường chuẩn danh mục 8.07%
+    # Đường chuẩn danh mục động
     axes[1].axhline(
-        8.07,
+        baseline,
         color="#e63946",
         linestyle="--",
         linewidth=1.8,
-        label="Tỷ lệ vỡ nợ trung bình toàn danh mục (8.07%)",
+        label=f"Tỷ lệ vỡ nợ trung bình toàn danh mục ({baseline:.2f}%)",
     )
 
     for bar, pct, cnt in zip(bars, age_stats["default_pct"], age_stats["count"]):
