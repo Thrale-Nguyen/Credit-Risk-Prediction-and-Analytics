@@ -121,6 +121,21 @@ def apply_business_features(df: pd.DataFrame, verbose: bool = True) -> pd.DataFr
     if verbose:
         print("  • Đang thực hiện Feature Engineering & Xử lý Dị thường Nghiệp vụ...")
 
+    # 0. Khử số âm vô lý trên các thước đo dương (AMT_*, CNT_*) do bẫy đảo dấu
+    amt_cols = [c for c in df.columns if c.startswith("AMT_")]
+    for c in amt_cols:
+        if (df[c] < 0).any():
+            df[c] = np.abs(df[c])
+
+    cnt_cols = [c for c in df.columns if c.startswith("CNT_")]
+    for c in cnt_cols:
+        if (df[c] < 0).any():
+            df[c] = np.abs(df[c])
+
+    # Xử lý ngoại lai lính canh: CNT_CHILDREN >= 15 hoặc 9999 gán np.nan
+    if "CNT_CHILDREN" in df.columns:
+        df.loc[df["CNT_CHILDREN"] >= 15, "CNT_CHILDREN"] = np.nan
+
     # 1. Dị thường hưu trí DAYS_EMPLOYED == 365243
     if "DAYS_EMPLOYED" in df.columns:
         anom_mask = (df["DAYS_EMPLOYED"] == 365243)
@@ -143,8 +158,7 @@ def apply_business_features(df: pd.DataFrame, verbose: bool = True) -> pd.DataFr
 
     # 3. Tính tuổi thực tế AGE_YEARS và dương hóa các cột ngày tháng âm DAYS_*
     if "DAYS_BIRTH" in df.columns:
-        # DAYS_BIRTH đang là số ngày âm từ lúc sinh đến lúc nộp đơn
-        df["AGE_YEARS"] = (-df["DAYS_BIRTH"] / 365.25).astype("float32")
+        df["AGE_YEARS"] = (np.abs(df["DAYS_BIRTH"]) / 365.25).astype("float32")
         if verbose:
             print("    - Đã tạo đặc trưng độ tuổi thực tế: [AGE_YEARS]")
 
@@ -159,7 +173,6 @@ def apply_business_features(df: pd.DataFrame, verbose: bool = True) -> pd.DataFr
 
     # 4. Bổ sung 4 Tỷ Lệ Đòn Bẩy Tài Chính Cốt Lõi (Domain Financial Ratios)
     if "AMT_CREDIT" in df.columns and "AMT_INCOME_TOTAL" in df.columns:
-        # Tránh chia cho 0 bằng cách cộng epsilon 1e-5
         income_safe = df["AMT_INCOME_TOTAL"].clip(lower=1.0)
         df["CREDIT_TO_INCOME"] = (df["AMT_CREDIT"] / income_safe).astype("float32")
         if verbose:

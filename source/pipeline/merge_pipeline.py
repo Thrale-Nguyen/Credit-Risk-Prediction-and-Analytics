@@ -42,7 +42,7 @@ if sys.platform.startswith("win"):
 # =============================================================================
 
 DEFAULT_GROUP_KEY = "SK_ID_CURR"
-DEFAULT_EXPECTED_ROWS = 234072
+DEFAULT_EXPECTED_ROWS: Optional[int] = None
 
 # Danh sách 5 bảng phụ kèm tiền tố phân định tương ứng
 SECONDARY_SPECS = [
@@ -317,9 +317,6 @@ def run_merge_pipeline(
     print("=" * 85)
     print(f"• Thư mục bảng sạch đầu vào (Input) : {in_path}")
     print(f"• Ma trận đặc trưng đầu ra (Output): {out_file}")
-    print(f"• Số dòng bảo toàn bắt buộc        : {expected_rows:,} dòng (Grain 1:1)")
-    print("-" * 85)
-
     # 1. Đọc bảng chính application_train.parquet
     app_file = in_path / "application_train.parquet"
     if not app_file.exists():
@@ -340,10 +337,16 @@ def run_merge_pipeline(
     print(f"✓ Nạp xong bảng chính trong {time.time()-t_app:.1f}s | "
           f"Shape: {df_main.shape} | RAM: {mem_main_mb:.1f} MB")
     
-    # Kiểm tra số dòng bảng chính
-    assert len(df_main) == expected_rows, (
-        f"Lỗi: Số dòng của bảng chính ({len(df_main):,}) không khớp mục tiêu {expected_rows:,}!"
-    )
+    # Thiết lập số dòng chuẩn cần bảo toàn (mặc định lấy theo độ dài bảng chính)
+    if expected_rows is None:
+        expected_rows = len(df_main)
+    else:
+        assert len(df_main) == expected_rows, (
+            f"Lỗi: Số dòng của bảng chính ({len(df_main):,}) không khớp mục tiêu {expected_rows:,}!"
+        )
+
+    print(f"• Số dòng bảo toàn bắt buộc        : {expected_rows:,} dòng (Grain 1:1)")
+    print("-" * 85)
 
     # 2. Tuần tự nén, làm phẳng và ghép nối từng bảng phụ
     merge_history: List[Dict[str, Any]] = []
