@@ -1,0 +1,60 @@
+{
+  "status": "success",
+  "model_target": "LightGBM",
+  "created_at": "2026-10-23 13:41:35",
+  "source_file": "D:\\University\\Chương trình đào tạo\\Năm 2026\\HK3 - 2026\\Lập trình Python cho khoa học dữ liệu\\PRJ-01\\data\\processed\\train_merged.parquet",
+  "total_rows": 234072,
+  "total_features": 877,
+  "total_columns": 879,
+  "split_stats": {
+    "total_rows": 234072,
+    "train_rows": 187257,
+    "val_rows": 46815,
+    "train_pct": 79.99974366861478,
+    "val_pct": 20.000256331385216,
+    "overall_default_rate": 7.891161693837794,
+    "train_default_rate": 7.8912937834099655,
+    "val_default_rate": 7.890633344013671,
+    "random_state": 42
+  },
+  "categorical_features": [
+    "NAME_CONTRACT_TYPE",
+    "CODE_GENDER",
+    "FLAG_OWN_CAR",
+    "FLAG_OWN_REALTY",
+    "NAME_TYPE_SUITE",
+    "NAME_INCOME_TYPE",
+    "NAME_EDUCATION_TYPE",
+    "NAME_FAMILY_STATUS",
+    "NAME_HOUSING_TYPE",
+    "OCCUPATION_TYPE",
+    "WEEKDAY_APPR_PROCESS_START",
+    "ORGANIZATION_TYPE",
+    "FONDKAPREMONT_MODE",
+    "HOUSETYPE_MODE",
+    "WALLSMATERIAL_MODE",
+    "EMERGENCYSTATE_MODE"
+  ],
+  "engineered_features": [
+    "DAYS_EMPLOYED_ANOM",
+    "NO_CC",
+    "AGE_YEARS",
+    "CREDIT_TO_INCOME",
+    "ANNUITY_TO_INCOME",
+    "CREDIT_TERM",
+    "INCOME_PER_PERSON"
+  ],
+  "files": {
+    "train_parquet": {
+      "path": "D:\\University\\Chương trình đào tạo\\Năm 2026\\HK3 - 2026\\Lập trình Python cho khoa học dữ liệu\\PRJ-01\\data\\processed\\train_lgb.parquet",
+      "rows": 187257,
+      "size_mb": 138.78
+    },
+    "val_parquet": {
+      "path": "D:\\University\\Chương trình đào tạo\\Năm 2026\\HK3 - 2026\\Lập trình Python cho khoa học dữ liệu\\PRJ-01\\data\\processed\\val_lgb.parquet",
+      "rows": 46815,
+      "size_mb": 36.53
+    }
+  },
+  "elapsed_seconds": 9.99
+}
