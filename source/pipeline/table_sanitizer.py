@@ -39,8 +39,8 @@ if sys.platform.startswith("win"):
 # CẤU HÌNH & REGEX LÀM SẠCH CHUẨN MỰC
 # =============================================================================
 
-# Regex bóc tách đơn vị tiền tệ, đo lường và khoảng trắng rác
-UNIT_CLEAN_REGEX = re.compile(r"[₫đVNDUSDkg%\s,\xa0]", re.IGNORECASE)
+# Regex bóc tách đơn vị tiền tệ, đo lường và khoảng trắng rác (giữ lại dấu phẩy để xử lý số thập phân)
+UNIT_CLEAN_REGEX = re.compile(r"[₫đVNDUSDkg%\s\xa0]", re.IGNORECASE)
 
 # Danh mục các ký hiệu missing ẩn / sentinel values
 HIDDEN_MISSING_STRINGS = {
@@ -120,10 +120,15 @@ def sanitize_column_series(series: pd.Series, col_name: str) -> Tuple[pd.Series,
     col_upper = col_name.upper()
     has_numeric_name = any(kw in col_upper for kw in NUMERIC_KEYWORDS) or col_upper.endswith(("_AVG", "_MODE", "_MEDI"))
 
-    # Thử bóc tách Regex đơn vị tiền tệ & đo lường, và chuyển dấu gạch chéo đầu số âm thành dấu trừ
+    # Thử bóc tách Regex đơn vị tiền tệ & đo lường, chuyển dấu gạch chéo đầu số âm thành dấu trừ, và đổi phẩy thập phân thành chấm
     sample_size = min(len(non_null), 2000)
     sample_vals = non_null.sample(n=sample_size, random_state=42) if len(non_null) > sample_size else non_null
-    sample_str = sample_vals.astype(str).str.strip().str.replace(r"^/\s*", "-", regex=True)
+    sample_str = (
+        sample_vals.astype(str)
+        .str.strip()
+        .str.replace(r"^/\s*", "-", regex=True)
+        .str.replace(",", ".")
+    )
     sample_stripped = sample_str.str.replace(UNIT_CLEAN_REGEX, "", regex=True)
     
     parsed_sample = pd.to_numeric(sample_stripped, errors="coerce")
@@ -133,18 +138,47 @@ def sanitize_column_series(series: pd.Series, col_name: str) -> Tuple[pd.Series,
     # 1. Tỷ lệ parse thành công >= 50%
     # 2. Hoặc tên cột có từ khóa số và tỷ lệ parse >= 20%
     if parse_success_rate >= 0.50 or (has_numeric_name and parse_success_rate >= 0.20):
-        # Thực hiện ép kiểu toàn bộ cột (chuyển ^/ thành - và bóc đơn vị)
-        full_str = series.astype(str).str.strip().str.replace(r"^/\s*", "-", regex=True)
+        # Thực hiện ép kiểu toàn bộ cột (chuyển ^/ thành -, đổi , thành ., và bóc đơn vị)
+        full_str = (
+            series.astype(str)
+            .str.strip()
+            .str.replace(r"^/\s*", "-", regex=True)
+            .str.replace(",", ".")
+        )
         full_stripped = full_str.str.replace(UNIT_CLEAN_REGEX, "", regex=True)
         # Thay các sentinel string thành NaN trước khi ép
         full_numeric = pd.to_numeric(full_stripped, errors="coerce")
         return full_numeric, "converted_to_numeric"
     else:
-        # Cột chuỗi phân loại thực sự: Cắt khoảng trắng đầu/cuối và chuẩn hóa missing ẩn
+        # Cột chuỗi phân loại thực sự: Cắt khoảng trắng đầu/cuối, chuẩn hóa Title Case và missing ẩn
         cleaned_text = series.astype(str).str.strip()
-        # Chuyển các ký tự missing ẩn về np.nan
-        is_missing = cleaned_text.str.lower().isin(HIDDEN_MISSING_STRINGS) | (cleaned_text == "") | (series.isna())
+        # Chuyển các ký tự missing ẩn / rác về np.nan
+        sentinel_text = {"chưa rõ", "chua ro", "chua ro -", "chưa rõ -", "xna", "xap"}
+        is_missing = (
+            cleaned_text.str.lower().isin(HIDDEN_MISSING_STRINGS)
+            | cleaned_text.str.lower().isin(sentinel_text)
+            | (cleaned_text == "")
+            | (series.isna())
+        )
         cleaned_text = cleaned_text.mask(is_missing, np.nan)
+
+        # Chuẩn hóa Title Case cho text hợp lệ
+        valid_mask = cleaned_text.notna()
+        cleaned_text.loc[valid_mask] = cleaned_text.loc[valid_mask].str.title()
+
+        # Ánh xạ các lỗi chính tả / viết tắt thường gặp về chuẩn quốc tế của Home Credit
+        mapping_rules = {
+            "Revolving Loa": "Revolving Loans",
+            "Revolving Loa -": "Revolving Loans",
+            "Revolving Loans -": "Revolving Loans",
+            "Cash Loans -": "Cash Loans",
+            "Commercial Associa": "Commercial Associate",
+            "Secondary / Secondary Speci": "Secondary / secondary special",
+            "Secondary / Secondary Specia": "Secondary / secondary special",
+            "Secondary / Secondary Special": "Secondary / secondary special",
+            "Secondary/Secondary Special": "Secondary / secondary special",
+        }
+        cleaned_text = cleaned_text.replace(mapping_rules)
         return cleaned_text, "cleaned_text"
 
 
@@ -241,6 +275,50 @@ def sanitize_application_train(
 
     print(f"  + Đã chuyển đổi {len(converted_cols)} cột object nhiễm đơn vị sang kiểu số float")
     print(f"  + Đã chuẩn hóa {len(cleaned_text_cols)} cột phân loại text (strip khoảng trắng, gán missing ẩn -> NaN)")
+
+    # 3.1 Khử ngoại lai phi lý trên EXT_SOURCE_* (chuẩn hóa bắt buộc trong [0.0, 1.0])
+    for ext_col in ["EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3"]:
+        if ext_col in df.columns:
+            invalid_ext = (df[ext_col] < 0.0) | (df[ext_col] > 1.0)
+            n_inv = int(invalid_ext.sum())
+            if n_inv > 0:
+                df.loc[invalid_ext, ext_col] = np.nan
+                print(f"  + [EXT_SOURCE] Đã lọc {n_inv:,} giá trị ngoại lai (<0 hoặc >1) trên cột [{ext_col}] về NaN")
+
+    # 3.2 Khử số âm và ngoại lai phóng đại trên các thước đo tài chính (AMT_*, CNT_*)
+    for c in df.columns:
+        if c.startswith("AMT_"):
+            if pd.api.types.is_numeric_dtype(df[c]) and (df[c] < 0).any():
+                df[c] = df[c].abs()
+        elif c.startswith("CNT_"):
+            if pd.api.types.is_numeric_dtype(df[c]) and (df[c] < 0).any():
+                df[c] = df[c].abs()
+
+    # Khử lính canh âm/0 và ngoại lai phóng đại trên khoản trả định kỳ (AMT_ANNUITY)
+    if "AMT_ANNUITY" in df.columns:
+        df.loc[df["AMT_ANNUITY"] <= 0, "AMT_ANNUITY"] = np.nan
+        df.loc[df["AMT_ANNUITY"] > 5e5, "AMT_ANNUITY"] /= 1000.0
+
+    # Khử nhiễu nhân 1,000x trên AMT_CREDIT (> 10,000,000)
+    if "AMT_CREDIT" in df.columns:
+        df.loc[df["AMT_CREDIT"] > 1e7, "AMT_CREDIT"] /= 1000.0
+
+    # Khử nhiễu nhân 1,000x trên AMT_INCOME_TOTAL (> 10,000,000)
+    if "AMT_INCOME_TOTAL" in df.columns:
+        df.loc[df["AMT_INCOME_TOTAL"] > 1e7, "AMT_INCOME_TOTAL"] /= 1000.0
+
+    # Khử nhiễu nhân 1,000x trên AMT_GOODS_PRICE (> 10,000,000)
+    if "AMT_GOODS_PRICE" in df.columns:
+        df.loc[df["AMT_GOODS_PRICE"] > 1e7, "AMT_GOODS_PRICE"] /= 1000.0
+
+    # Khử ngoại lai lính canh: CNT_CHILDREN >= 15 hoặc 9999
+    if "CNT_CHILDREN" in df.columns:
+        df.loc[df["CNT_CHILDREN"] >= 15, "CNT_CHILDREN"] = np.nan
+
+    # 3.3 Chuẩn hóa CODE_GENDER về F và M
+    if "CODE_GENDER" in df.columns:
+        df["CODE_GENDER"] = df["CODE_GENDER"].astype(str).str.strip().str.upper()
+        df.loc[df["CODE_GENDER"].isin(["XNA", "NAN"]), "CODE_GENDER"] = np.nan
 
     # 4. Thu thập danh sách khách hàng hợp lệ SK_ID_CURR
     valid_sk_ids = set(df["SK_ID_CURR"].astype(int).unique())
@@ -341,6 +419,25 @@ def sanitize_secondary_table(
         print(f"• Đã chuyển đổi {len(converted_cols)} cột object nhiễm đơn vị sang kiểu số float")
     if cleaned_text_cols:
         print(f"• Đã chuẩn hóa {len(cleaned_text_cols)} cột phân loại text")
+
+    # Chuẩn hóa đặc thù cột mục đích vay nếu là bảng previous_application
+    if table_name == "previous_application" and "NAME_CASH_LOAN_PURPOSE" in df.columns:
+        df["NAME_CASH_LOAN_PURPOSE"] = df["NAME_CASH_LOAN_PURPOSE"].astype(str).str.strip().str.title()
+        invalid_purposes = {"Xap", "Xna", "Chưa Rõ", "Chua Ro", "Nan", ""}
+        df.loc[df["NAME_CASH_LOAN_PURPOSE"].isin(invalid_purposes), "NAME_CASH_LOAN_PURPOSE"] = np.nan
+
+    # Khử số âm và ngoại lai phóng đại 1,000x trên AMT_* và CNT_* của các bảng phụ
+    for c in df.columns:
+        if c.startswith("AMT_") or c.startswith("CNT_"):
+            if pd.api.types.is_numeric_dtype(df[c]):
+                if (df[c] < 0).any():
+                    df[c] = df[c].abs()
+                if c.startswith("AMT_") and (df[c] > 1e7).any():
+                    df.loc[df[c] > 1e7, c] /= 1000.0
+
+    if "AMT_ANNUITY" in df.columns:
+        df.loc[df["AMT_ANNUITY"] <= 0, "AMT_ANNUITY"] = np.nan
+        df.loc[df["AMT_ANNUITY"] > 5e5, "AMT_ANNUITY"] /= 1000.0
 
     # 4. Xuất tệp Parquet
     out_file = output_path / f"{table_name}.parquet"
