@@ -37,6 +37,7 @@ try:
     )
     from .bivariate import (
         compute_correlations,
+        compute_information_value,
         plot_correlation_matrix_heatmap,
         plot_external_sources_comparison,
         plot_age_distribution_and_default_rate,
@@ -55,6 +56,7 @@ except ImportError:
     )
     from bivariate import (
         compute_correlations,
+        compute_information_value,
         plot_correlation_matrix_heatmap,
         plot_external_sources_comparison,
         plot_age_distribution_and_default_rate,
@@ -165,6 +167,7 @@ def main():
         "CC_CNT_DRAWINGS_ATM_CURRENT_MEAN",
         "PREV_NAME_CONTRACT_STATUS_REFUSED_MEAN",
         "BUREAU_CREDIT_ACTIVE_CLOSED_MEAN",
+        "BUREAU_AMT_CREDIT_MAX_OVERDUE_MAX",
         "BUREAU_AMT_CREDIT_SUM_OVERDUE_MEAN",
         "BUREAU_CREDIT_DAY_OVERDUE_MEAN",
         "POS_SK_DPD_MEAN",
@@ -177,6 +180,11 @@ def main():
     print("\n--- BẢNG SO SÁNH TƯƠNG QUAN PEARSON VS SPEARMAN VỚI NHÃN TARGET ---")
     display_cols = ["Feature", "Valid_Count", "Pearson", "Spearman", "Spearman_pval"]
     print(corr_df[display_cols].to_string(index=False))
+
+    # Đánh giá sức mạnh phân loại qua Information Value (IV) chuẩn Basel
+    iv_df = compute_information_value(df, features=corr_features, target_col="TARGET")
+    print("\n--- BẢNG XẾP HẠNG SỨC MẠNH DỰ BÁO QUA INFORMATION VALUE (IV / WOE) ---")
+    print(iv_df.to_string(index=False))
 
     fig3_path = figures_dir / "03_correlation_matrix_heatmap.png"
     plot_correlation_matrix_heatmap(df, output_path=str(fig3_path))

@@ -84,6 +84,76 @@ def compute_correlations(
     return res_df
 
 
+def compute_information_value(
+    df: pd.DataFrame,
+    features: Optional[List[str]] = None,
+    target_col: str = "TARGET",
+    n_bins: int = 10,
+) -> pd.DataFrame:
+    """
+    Tính toán chỉ số Information Value (IV) và Weight of Evidence (WOE) cho từng đặc trưng.
+    Thước đo chuẩn mực quốc tế của Basel II/III cho bài toán Credit Scoring,
+    không bị suy giảm bởi hiện tượng mất cân bằng nhãn mục tiêu.
+    """
+    if features is None:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        features = [c for c in numeric_cols if c != target_col]
+
+    y = df[target_col]
+    total_good = int((y == 0).sum())
+    total_bad = int((y == 1).sum())
+
+    if total_good == 0 or total_bad == 0:
+        return pd.DataFrame()
+
+    records = []
+    for col in features:
+        if col not in df.columns or col == target_col:
+            continue
+        valid_mask = df[col].notna() & y.notna()
+        x_valid = df.loc[valid_mask, col]
+        y_valid = y.loc[valid_mask]
+
+        if x_valid.nunique() < 2:
+            continue
+
+        try:
+            binned = pd.qcut(x_valid, q=n_bins, duplicates="drop")
+        except Exception:
+            binned = pd.cut(x_valid, bins=n_bins)
+
+        ct = pd.crosstab(binned, y_valid)
+        if 0 not in ct.columns or 1 not in ct.columns:
+            continue
+
+        good_dist = ct[0] / total_good
+        bad_dist = ct[1] / total_bad
+        woe = np.log((good_dist + 1e-6) / (bad_dist + 1e-6))
+        iv = float(((good_dist - bad_dist) * woe).sum())
+
+        # Đánh giá sức mạnh phân loại theo chuẩn Basel / Credit Risk
+        if iv < 0.02:
+            pred_power = "Không có sức mạnh (< 0.02)"
+        elif iv < 0.10:
+            pred_power = "Yếu (0.02 - 0.10)"
+        elif iv < 0.30:
+            pred_power = "Trung bình (0.10 - 0.30)"
+        elif iv < 0.50:
+            pred_power = "Mạnh (0.30 - 0.50)"
+        else:
+            pred_power = "Rất mạnh / Đáng ngờ (> 0.50)"
+
+        records.append({
+            "Feature": col,
+            "Valid_Count": int(valid_mask.sum()),
+            "Information_Value": round(iv, 4),
+            "Predictive_Power": pred_power,
+        })
+
+    iv_df = pd.DataFrame(records).sort_values(by="Information_Value", ascending=False)
+    return iv_df
+
+
 def plot_correlation_matrix_heatmap(
     df: pd.DataFrame,
     output_path: Optional[str] = "figures/03_correlation_matrix_heatmap.png",
@@ -91,13 +161,15 @@ def plot_correlation_matrix_heatmap(
 ) -> pd.DataFrame:
     """
     Vẽ biểu đồ Heatmap thể hiện ma trận tương quan giữa nhãn TARGET và các đặc trưng rủi ro cốt lõi.
+    Đã tối ưu: Đưa TARGET xuống cuối ma trận để hiển thị trọn vẹn hàng tương quan ở đáy,
+    cân đối dải màu đối xứng [-0.65, 0.65] quanh mốc 0.0 tránh lệch pha màu sắc.
     """
     df_calc = df.copy()
     if "AGE_YEARS" not in df_calc.columns and "DAYS_BIRTH" in df_calc.columns:
         df_calc["AGE_YEARS"] = np.abs(df_calc["DAYS_BIRTH"]) / 365.25
 
+    # Đưa các biến độc lập lên trước, TARGET xuống cuối cùng
     key_features = [
-        "TARGET",
         "EXT_SOURCE_3",
         "EXT_SOURCE_2",
         "EXT_SOURCE_1",
@@ -107,20 +179,24 @@ def plot_correlation_matrix_heatmap(
         "AMT_ANNUITY",
     ]
 
-    # Bổ sung các cột phụ trợ nếu có trong df
+    # Bổ sung các cột phụ trợ nếu có trong df (ưu tiên Nợ quá hạn kỷ lục Max thay cho Mean)
     optional_candidates = [
         "PREV_NAME_CONTRACT_STATUS_REFUSED_MEAN",
         "BUREAU_CREDIT_ACTIVE_CLOSED_MEAN",
-        "BUREAU_AMT_CREDIT_SUM_OVERDUE_MEAN",
+        "BUREAU_AMT_CREDIT_MAX_OVERDUE_MAX",
         "CC_CNT_DRAWINGS_ATM_CURRENT_MEAN",
     ]
     for c in optional_candidates:
         if c in df_calc.columns:
             key_features.append(c)
+        elif c == "BUREAU_AMT_CREDIT_MAX_OVERDUE_MAX" and "BUREAU_AMT_CREDIT_SUM_OVERDUE_MEAN" in df_calc.columns:
+            key_features.append("BUREAU_AMT_CREDIT_SUM_OVERDUE_MEAN")
+
+    # Đưa TARGET vào cuối cùng để hàng dưới cùng hiển thị trọn vẹn toàn bộ các ô tương quan
+    key_features.append("TARGET")
 
     # Đổi tên hiển thị ngắn gọn trực quan
     rename_dict = {
-        "TARGET": "TARGET (Vỡ nợ)",
         "EXT_SOURCE_3": "EXT_SOURCE_3",
         "EXT_SOURCE_2": "EXT_SOURCE_2",
         "EXT_SOURCE_1": "EXT_SOURCE_1",
@@ -130,19 +206,21 @@ def plot_correlation_matrix_heatmap(
         "AMT_ANNUITY": "Khoản trả kỳ (Annuity)",
         "PREV_NAME_CONTRACT_STATUS_REFUSED_MEAN": "Tỷ lệ từ chối cũ (Refused)",
         "BUREAU_CREDIT_ACTIVE_CLOSED_MEAN": "Tỷ lệ tất toán CIC (Closed)",
+        "BUREAU_AMT_CREDIT_MAX_OVERDUE_MAX": "Nợ quá hạn kỷ lục CIC",
         "BUREAU_AMT_CREDIT_SUM_OVERDUE_MEAN": "Nợ quá hạn CIC (Overdue)",
         "CC_CNT_DRAWINGS_ATM_CURRENT_MEAN": "Rút tiền ATM thẻ tín dụng",
+        "TARGET": "TARGET (Vỡ nợ)",
     }
 
     sub_df = df_calc[key_features].rename(columns=rename_dict)
     corr_matrix = sub_df.corr(method="pearson")
 
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(13, 11))
 
-    # Mask tam giác trên để ma trận thanh thoát
-    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    # Mask tam giác trên (k=1 giữ lại đường chéo chính, đảm bảo hàng TARGET ở đáy đầy đủ giá trị)
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
 
-    cmap = sns.diverging_palette(240, 10, as_cmap=True)
+    max_scale = 0.65
 
     sns.heatmap(
         corr_matrix,
@@ -150,8 +228,9 @@ def plot_correlation_matrix_heatmap(
         annot=True,
         fmt=".3f",
         cmap="coolwarm",
-        vmin=-0.25,
-        vmax=0.85,
+        vmin=-max_scale,
+        vmax=max_scale,
+        center=0.0,
         square=True,
         linewidths=1.0,
         cbar_kws={"shrink": 0.8, "label": "Hệ số tương quan Pearson (r)"},

@@ -68,6 +68,23 @@ def apply_secondary_domain_rules(df: pd.DataFrame, table_name: str) -> pd.DataFr
                 df.loc[df[c].isin([-1, -1.0, 1.0, 9999, 9999.0]), c] = np.nan
                 if (df[c] > 1e7).any():
                     df.loc[df[c] > 1e7, c] /= 1000.0
+            elif c.startswith("CNT_") and pd.api.types.is_numeric_dtype(df[c]):
+                # Lọc số âm bất hợp lý trên số lượng giao dịch
+                df.loc[df[c] < 0, c] = np.nan
+                # Lọc sạch các giá trị lính canh nhân tạo: 9999, 100, 1000, 10000, 100000...
+                sentinel_cnt = [
+                    9999, 9999.0,
+                    100, 100.0, 1000, 1000.0, 10000, 10000.0, 100000, 100000.0,
+                    200, 200.0, 300, 300.0, 400, 400.0, 500, 500.0, 600, 600.0,
+                    2000, 2000.0, 3000, 3000.0, 4000, 4000.0, 5000, 5000.0, 6000, 6000.0
+                ]
+                df.loc[df[c].isin(sentinel_cnt), c] = np.nan
+                # Khử lính canh/ngoại lai vượt ngưỡng vật lý nghiệp vụ
+                if c == "CNT_INSTALMENT_MATURE_CUM":
+                    df.loc[df[c] > 120.0, c] = np.nan
+                else:
+                    # Các cột số lần rút ATM, quẹt thẻ... trong 1 tháng không vượt quá 50 lần
+                    df.loc[df[c] > 50.0, c] = np.nan
 
     # 4. Xử lý đặc thù bảng installments_payments
     elif table_name == "installments_payments":

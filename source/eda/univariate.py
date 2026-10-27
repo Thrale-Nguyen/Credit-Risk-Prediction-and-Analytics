@@ -163,12 +163,13 @@ def plot_univariate_financial_distributions(
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
 
-    # 1. Thu nhập AMT_INCOME_TOTAL (Lọc sạch lính canh, cắt ngưỡng trực quan 600,000)
+    # 1. Thu nhập AMT_INCOME_TOTAL (Lọc sạch lính canh, cắt ngưỡng phân vị 99th)
     income = df["AMT_INCOME_TOTAL"].dropna()
     income = income[(income > 0) & (~income.isin([1.0, 9999.0]))]
     inc_median = income.median()
     inc_mean = income.mean()
-    inc_display = income[income <= 600_000]
+    inc_p99 = income.quantile(0.99)
+    inc_display = income[income <= inc_p99]
 
     sns.histplot(
         inc_display,
@@ -178,7 +179,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1b3c5f",
-        kde_kws=dict(bw_adjust=1.2),
+        kde_kws=dict(bw_adjust=1.4),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax1.axvline(
@@ -196,7 +197,7 @@ def plot_univariate_financial_distributions(
         label=f"Mean: {inc_mean:,.0f} $",
     )
     ax1.set_title(
-        "A. Phân phối Thu nhập (AMT_INCOME_TOTAL ≤ 600k $)",
+        "A. Phân phối Thu nhập (AMT_INCOME_TOTAL ≤ 99th)",
         fontsize=12,
         fontweight="bold",
     )
@@ -208,7 +209,7 @@ def plot_univariate_financial_distributions(
     ax1.spines["top"].set_visible(False)
     ax1.spines["right"].set_visible(False)
 
-    # 2. Thu nhập trên thang đo Logarithm (Log-Income, làm mượt với bw_adjust=1.2)
+    # 2. Thu nhập trên thang đo Logarithm (Log-Income, làm mượt với bw_adjust=1.4)
     log_income = np.log10(income[income > 0])
     sns.histplot(
         log_income,
@@ -218,7 +219,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1d3557",
-        kde_kws=dict(bw_adjust=1.2),
+        kde_kws=dict(bw_adjust=1.4),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax2.axvline(
@@ -229,7 +230,7 @@ def plot_univariate_financial_distributions(
         label=f"Log10(Median): {np.log10(inc_median):.2f}",
     )
     ax2.set_title(
-        "B. Thu nhập trên thang Log10 (Dạng chuẩn Log-Normal)",
+        "B. Thu nhập trên thang Log10",
         fontsize=12,
         fontweight="bold",
     )
@@ -256,7 +257,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#0f1d2e",
-        kde_kws=dict(bw_adjust=1.2),
+        kde_kws=dict(bw_adjust=1.4),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax3.axvline(
@@ -302,7 +303,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1d3557",
-        kde_kws=dict(bw_adjust=1.2),
+        kde_kws=dict(bw_adjust=1.4),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax4.axvline(
