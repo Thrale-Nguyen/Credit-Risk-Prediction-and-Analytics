@@ -121,20 +121,20 @@ def apply_business_features(df: pd.DataFrame, verbose: bool = True) -> pd.DataFr
     if verbose:
         print("  • Đang thực hiện Feature Engineering & Xử lý Dị thường Nghiệp vụ...")
 
-    # 0. Khử số âm vô lý trên các thước đo dương (AMT_*, CNT_*) do bẫy đảo dấu
-    amt_cols = [c for c in df.columns if c.startswith("AMT_")]
-    for c in amt_cols:
-        if (df[c] < 0).any():
-            df[c] = np.abs(df[c])
+    # 0. Chuẩn hóa lính canh & thước đo tài chính cốt lõi (Cơ chế Whitelist nghiệp vụ)
+    # Tuyệt đối không áp dụng blanket rule abs() trên toàn bộ AMT_* (giữ nguyên AMT_BALANCE âm trên CC)
+    core_financial_cols = ["AMT_INCOME_TOTAL", "AMT_CREDIT", "AMT_ANNUITY", "AMT_GOODS_PRICE"]
+    for c in core_financial_cols:
+        if c in df.columns:
+            invalid_mask = (df[c] <= 0) | df[c].isin([1.0, 9999.0])
+            df.loc[invalid_mask, c] = np.nan
 
-    cnt_cols = [c for c in df.columns if c.startswith("CNT_")]
-    for c in cnt_cols:
-        if (df[c] < 0).any():
-            df[c] = np.abs(df[c])
-
-    # Xử lý ngoại lai lính canh: CNT_CHILDREN >= 15 hoặc 9999 gán np.nan
+    # Xử lý ngoại lai lính canh nhân khẩu học
     if "CNT_CHILDREN" in df.columns:
-        df.loc[df["CNT_CHILDREN"] >= 15, "CNT_CHILDREN"] = np.nan
+        df.loc[(df["CNT_CHILDREN"] >= 15) | (df["CNT_CHILDREN"] == 9999) | (df["CNT_CHILDREN"] < 0), "CNT_CHILDREN"] = np.nan
+    if "CNT_FAM_MEMBERS" in df.columns:
+        df.loc[(df["CNT_FAM_MEMBERS"] == 9999) | (df["CNT_FAM_MEMBERS"] > 20) | (df["CNT_FAM_MEMBERS"] < 1), "CNT_FAM_MEMBERS"] = np.nan
+
 
     # 1. Dị thường hưu trí DAYS_EMPLOYED == 365243
     if "DAYS_EMPLOYED" in df.columns:

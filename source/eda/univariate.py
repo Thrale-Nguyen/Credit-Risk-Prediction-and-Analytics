@@ -163,11 +163,11 @@ def plot_univariate_financial_distributions(
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
 
-    # 1. Thu nhập AMT_INCOME_TOTAL (Cắt ngưỡng trực quan 600,000 để thấy rõ hình thái)
+    # 1. Thu nhập AMT_INCOME_TOTAL (Lọc sạch lính canh, cắt ngưỡng trực quan 600,000)
     income = df["AMT_INCOME_TOTAL"].dropna()
+    income = income[(income > 0) & (~income.isin([1.0, 9999.0]))]
     inc_median = income.median()
     inc_mean = income.mean()
-    inc_p99 = income.quantile(0.99)
     inc_display = income[income <= 600_000]
 
     sns.histplot(
@@ -175,9 +175,10 @@ def plot_univariate_financial_distributions(
         kde=True,
         ax=ax1,
         color="#2b5c8f",
-        bins=50,
+        bins=40,
         stat="density",
         edgecolor="#1b3c5f",
+        kde_kws=dict(bw_adjust=1.2),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax1.axvline(
@@ -207,16 +208,17 @@ def plot_univariate_financial_distributions(
     ax1.spines["top"].set_visible(False)
     ax1.spines["right"].set_visible(False)
 
-    # 2. Thu nhập trên thang đo Logarithm (Log-Income)
+    # 2. Thu nhập trên thang đo Logarithm (Log-Income, làm mượt với bw_adjust=1.2)
     log_income = np.log10(income[income > 0])
     sns.histplot(
         log_income,
         kde=True,
         ax=ax2,
         color="#457b9d",
-        bins=60,
+        bins=40,
         stat="density",
         edgecolor="#1d3557",
+        kde_kws=dict(bw_adjust=1.2),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax2.axvline(
@@ -238,8 +240,9 @@ def plot_univariate_financial_distributions(
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
 
-    # 3. Khoản vay AMT_CREDIT
+    # 3. Khoản vay AMT_CREDIT (Lọc sạch lính canh, cắt ngưỡng 99th)
     credit = df["AMT_CREDIT"].dropna()
+    credit = credit[(credit > 0) & (~credit.isin([1.0, 9999.0]))]
     cred_median = credit.median()
     cred_mean = credit.mean()
     cred_p99 = credit.quantile(0.99)
@@ -250,9 +253,10 @@ def plot_univariate_financial_distributions(
         kde=True,
         ax=ax3,
         color="#1d3557",
-        bins=50,
+        bins=40,
         stat="density",
         edgecolor="#0f1d2e",
+        kde_kws=dict(bw_adjust=1.2),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax3.axvline(
@@ -282,8 +286,9 @@ def plot_univariate_financial_distributions(
     ax3.spines["top"].set_visible(False)
     ax3.spines["right"].set_visible(False)
 
-    # 4. Khoản trả định kỳ AMT_ANNUITY
+    # 4. Khoản trả định kỳ AMT_ANNUITY (Lọc sạch lính canh, cắt ngưỡng 99th)
     annuity = df["AMT_ANNUITY"].dropna()
+    annuity = annuity[(annuity > 0) & (~annuity.isin([1.0, 9999.0]))]
     ann_median = annuity.median()
     ann_mean = annuity.mean()
     ann_p99 = annuity.quantile(0.99)
@@ -294,9 +299,10 @@ def plot_univariate_financial_distributions(
         kde=True,
         ax=ax4,
         color="#3d5a80",
-        bins=50,
+        bins=40,
         stat="density",
         edgecolor="#1d3557",
+        kde_kws=dict(bw_adjust=1.2),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax4.axvline(

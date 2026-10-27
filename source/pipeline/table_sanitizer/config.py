@@ -10,7 +10,7 @@ import re
 # Regex bóc tách đơn vị tiền tệ, đo lường và khoảng trắng rác (giữ lại dấu phẩy để xử lý số thập phân)
 UNIT_CLEAN_REGEX = re.compile(r"[₫đVNDUSDkg%\s\xa0]", re.IGNORECASE)
 
-# Danh mục các ký hiệu missing ẩn / sentinel values
+# Danh mục các ký hiệu missing ẩn / sentinel values dạng chuỗi
 HIDDEN_MISSING_STRINGS = {
     "?", "n/a", "na", "nan", "null", "none", "missing", "unknown",
     "#n/a", "#na", "n.a.", "n/k", "nil", "void", "empty",
@@ -39,6 +39,33 @@ CORE_TABLES = [
     "credit_card_balance",
 ]
 
+# -----------------------------------------------------------------------------
+# QUY TẮC NGHIỆP VỤ & LÍNH CANH ĐẶC THÙ (WHITELIST & SENTINELS)
+# -----------------------------------------------------------------------------
+
+# Whitelist các thước đo tài sản & hạn mức giao dịch cốt lõi (Bắt buộc > 0)
+# Tuyệt đối không dùng quy tắc phủ đầu (blanket rule) trên toàn bộ AMT_*
+CORE_FINANCIAL_COLS = [
+    "AMT_INCOME_TOTAL",
+    "AMT_CREDIT",
+    "AMT_ANNUITY",
+    "AMT_GOODS_PRICE",
+]
+
+# Giá trị lính canh số kinh điển cho thời gian (1000 năm / chưa từng xảy ra)
+TIME_SENTINEL_VALUE = 365243
+TIME_SENTINEL_COLS = [
+    "DAYS_EMPLOYED",
+    "DAYS_FIRST_DRAWING",
+    "DAYS_FIRST_DUE",
+    "DAYS_LAST_DUE_1ST_VERSION",
+    "DAYS_LAST_DUE",
+    "DAYS_TERMINATION",
+]
+
+# Giá trị lính canh số nhân tạo cần loại bỏ trên các biến định lượng cốt lõi
+NUMERIC_SENTINELS = {-1, -1.0, 1.0, 9999, 9999.0}
+
 # Ánh xạ các lỗi chính tả / viết tắt thường gặp về chuẩn quốc tế của Home Credit
 TEXT_MAPPING_RULES = {
     "Revolving Loa": "Revolving Loans",
@@ -51,3 +78,4 @@ TEXT_MAPPING_RULES = {
     "Secondary / Secondary Special": "Secondary / secondary special",
     "Secondary/Secondary Special": "Secondary / secondary special",
 }
+

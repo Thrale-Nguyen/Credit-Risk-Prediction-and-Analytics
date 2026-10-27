@@ -132,12 +132,23 @@ def aggregate_secondary_table(
         if col != group_key:
             df_work[col] = df_work[col].astype("int32")
 
+    # Tách biệt nghiệp vụ previous_application: Phân rã hạn mức theo trạng thái hợp đồng (Approved, Refused, Canceled)
+    if table_name == "previous_application" and "NAME_CONTRACT_STATUS" in df_work.columns:
+        status_upper = df_work["NAME_CONTRACT_STATUS"].astype(str).str.strip().str.upper()
+        if "AMT_CREDIT" in df_work.columns:
+            df_work["AMT_CREDIT_APPROVED"] = df_work["AMT_CREDIT"].where(status_upper == "APPROVED", np.nan).astype("float32")
+        if "AMT_APPLICATION" in df_work.columns:
+            df_work["AMT_APPLICATION_APPROVED"] = df_work["AMT_APPLICATION"].where(status_upper == "APPROVED", np.nan).astype("float32")
+            df_work["AMT_APPLICATION_REFUSED"] = df_work["AMT_APPLICATION"].where(status_upper == "REFUSED", np.nan).astype("float32")
+            df_work["AMT_APPLICATION_CANCELED"] = df_work["AMT_APPLICATION"].where(status_upper == "CANCELED", np.nan).astype("float32")
+
     # 2. Phân loại biến định lượng và biến định tính
     cat_cols = df_work.select_dtypes(include=["object", "category"]).columns.tolist()
     if group_key in cat_cols:
         cat_cols.remove(group_key)
 
     num_cols = [c for c in df_work.select_dtypes(include=["number"]).columns if c != group_key]
+
 
     if verbose:
         print(f"  • Gom nhóm {n_rows_orig:,} dòng về {n_unique_keys:,} khách hàng duy nhất...")

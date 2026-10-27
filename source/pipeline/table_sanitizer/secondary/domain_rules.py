@@ -29,21 +29,66 @@ def apply_secondary_domain_rules(df: pd.DataFrame, table_name: str) -> pd.DataFr
         invalid_purposes = {"Xap", "Xna", "Chưa Rõ", "Chua Ro", "Nan", ""}
         df.loc[df["NAME_CASH_LOAN_PURPOSE"].isin(invalid_purposes), "NAME_CASH_LOAN_PURPOSE"] = np.nan
 
-    # 2. Khử số âm và ngoại lai phóng đại 1,000x trên AMT_* và CNT_* của các bảng phụ
-    for c in df.columns:
-        if c.startswith("AMT_") or c.startswith("CNT_"):
-            if pd.api.types.is_numeric_dtype(df[c]):
-                if (df[c] < 0).any():
-                    df[c] = df[c].abs()
+    # 2. Xử lý đặc thù bảng previous_application: lính canh thời gian 365243 & tách biệt AMT_APPLICATION vs AMT_CREDIT
+    if table_name == "previous_application":
+        # Khử lính canh thời gian kinh điển 365243 (1000 năm / chưa từng xảy ra)
+        time_cols = [
+            "DAYS_FIRST_DRAWING",
+            "DAYS_FIRST_DUE",
+            "DAYS_LAST_DUE_1ST_VERSION",
+            "DAYS_LAST_DUE",
+            "DAYS_TERMINATION",
+        ]
+        for tc in time_cols:
+            if tc in df.columns:
+                df.loc[df[tc] == 365243, tc] = np.nan
+
+        # Khử lính canh trên các thước đo tài chính
+        for c in ["AMT_APPLICATION", "AMT_CREDIT", "AMT_ANNUITY", "AMT_GOODS_PRICE", "AMT_DOWN_PAYMENT"]:
+            if c in df.columns and pd.api.types.is_numeric_dtype(df[c]):
+                # Lọc lính canh nhân tạo
+                df.loc[df[c].isin([-1, -1.0, 1.0, 9999, 9999.0]), c] = np.nan
+                # Khử nhiễu nhân 1,000x
+                df.loc[df[c] > 1e7, c] /= 1000.0
+
+        # Với AMT_ANNUITY: khoản trả góp bắt buộc > 0
+        if "AMT_ANNUITY" in df.columns:
+            df.loc[df["AMT_ANNUITY"] <= 0, "AMT_ANNUITY"] = np.nan
+            df.loc[df["AMT_ANNUITY"] > 5e5, "AMT_ANNUITY"] /= 1000.0
+
+        # LƯU Ý NGHIỆP VỤ: Với AMT_CREDIT, GIỮ NGUYÊN giá trị 0.0 cho các hồ sơ Canceled / Refused
+        # vì phản ánh đúng thực tế giải ngân (không phát sinh dư nợ), tuyệt đối không gán NaN.
+
+    # 3. Xử lý đặc thù bảng credit_card_balance
+    elif table_name == "credit_card_balance":
+        # BẢO TOÀN SỐ DƯ ÂM: AMT_BALANCE < 0 thể hiện khách hàng thanh toán dư hạn mức (Overpayment).
+        # Tuyệt đối không dùng abs() làm sai lệch hành vi thanh toán tốt của khách hàng.
+        for c in df.columns:
+            if c.startswith("AMT_") and pd.api.types.is_numeric_dtype(df[c]):
+                df.loc[df[c].isin([-1, -1.0, 1.0, 9999, 9999.0]), c] = np.nan
+                if (df[c] > 1e7).any():
+                    df.loc[df[c] > 1e7, c] /= 1000.0
+
+    # 4. Xử lý đặc thù bảng installments_payments
+    elif table_name == "installments_payments":
+        for c in ["AMT_INSTALMENT", "AMT_PAYMENT"]:
+            if c in df.columns and pd.api.types.is_numeric_dtype(df[c]):
+                df.loc[df[c].isin([-1, -1.0, 1.0, 9999, 9999.0]), c] = np.nan
+                if (df[c] > 1e7).any():
+                    df.loc[df[c] > 1e7, c] /= 1000.0
+
+    # 5. Xử lý đặc thù bảng bureau & POS_CASH_balance
+    else:
+        # BẢO TOÀN GIÁ TRỊ 0: AMT_CREDIT_SUM_OVERDUE = 0 thể hiện không có nợ quá hạn (lịch sử tốt)
+        # Giữ nguyên giá trị 0, chỉ lọc lính canh nhân tạo 9999 và khử phóng đại
+        for c in df.columns:
+            if (c.startswith("AMT_") or c.startswith("CNT_")) and pd.api.types.is_numeric_dtype(df[c]):
+                df.loc[df[c].isin([9999, 9999.0]), c] = np.nan
                 if c.startswith("AMT_") and (df[c] > 1e7).any():
                     df.loc[df[c] > 1e7, c] /= 1000.0
 
-    # 3. Chuẩn hóa khoản trả định kỳ AMT_ANNUITY
-    if "AMT_ANNUITY" in df.columns:
-        df.loc[df["AMT_ANNUITY"] <= 0, "AMT_ANNUITY"] = np.nan
-        df.loc[df["AMT_ANNUITY"] > 5e5, "AMT_ANNUITY"] /= 1000.0
-
     return df
+
 
 
 if __name__ == "__main__":
