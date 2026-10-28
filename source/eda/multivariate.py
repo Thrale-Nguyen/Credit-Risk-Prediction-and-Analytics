@@ -44,14 +44,28 @@ def compute_multivariate_pivot_tables(
     và số lượng hồ sơ (count) theo các phân khúc nghiệp vụ cốt lõi.
     """
     clean_df = df.copy()
+    # 1. Khử triệt để nhãn dị thường / missing trên CODE_GENDER (chỉ chấp nhận F và M)
     if "CODE_GENDER" in clean_df.columns:
-        clean_df = clean_df[~clean_df["CODE_GENDER"].astype(str).str.upper().isin(["XNA", "NAN"])]
+        gender_str = clean_df["CODE_GENDER"].astype(str).str.strip().str.upper()
+        clean_df = clean_df[gender_str.isin(["F", "M"])].copy()
         clean_df["CODE_GENDER"] = clean_df["CODE_GENDER"].astype(str).str.strip().str.upper()
 
+    # 2. Khử triệt để các biến thể khuyết tật / 'None' trên các biến danh mục
     for col in ["NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_CONTRACT_TYPE"]:
         if col in clean_df.columns:
-            clean_df[col] = clean_df[col].astype(str).str.strip().str.title()
-            clean_df[col] = clean_df[col].replace({"Nan": np.nan, "Xna": np.nan, "Chưa Rõ": np.nan, "Chua Ro": np.nan})
+            sentinel_strings = [
+                "None", "none", "NONE", "Nan", "nan", "NAN", "Xna", "XNA",
+                "Chưa Rõ", "Chua Ro", "Unknown", "UNKNOWN", "Null", "null", "NULL"
+            ]
+            clean_df[col] = clean_df[col].replace(sentinel_strings, np.nan)
+            mask_notna = clean_df[col].notna()
+            clean_df.loc[mask_notna, col] = (
+                clean_df.loc[mask_notna, col]
+                .astype(str)
+                .str.strip()
+                .str.title()
+            )
+            clean_df[col] = clean_df[col].replace(["None", "Nan", "Xna", "Unknown"], np.nan)
 
     pivots = {}
 
@@ -172,11 +186,19 @@ def plot_multivariate_heatmaps(
         "Pensioner",
         "Unemployed",
     ]
+    contract_order = [
+        "Cash Loans",
+        "Revolving Loans",
+    ]
+    gender_order = ["F", "M"]
 
-    # 1. Giới tính x Học vấn
+    # 1. Giới tính x Học vấn (Khóa Whitelist 2 chiều: loại bỏ triệt để hàng/cột None)
     if "gender_education_rate" in pivots:
-        df1 = pivots["gender_education_rate"]
+        df1 = pivots["gender_education_rate"].copy()
+        idx1 = [g for g in gender_order if g in df1.index]
         cols1 = [c for c in edu_order if c in df1.columns]
+        if idx1:
+            df1 = df1.reindex(index=idx1)
         if cols1:
             df1 = df1[cols1]
         sns.heatmap(
@@ -200,7 +222,7 @@ def plot_multivariate_heatmaps(
 
     # 2. Loại thu nhập x Học vấn
     if "income_education_rate" in pivots:
-        df2 = pivots["income_education_rate"]
+        df2 = pivots["income_education_rate"].copy()
         idx2 = [i for i in major_incomes if i in df2.index]
         cols2 = [c for c in edu_order if c in df2.columns]
         if idx2:
@@ -229,12 +251,15 @@ def plot_multivariate_heatmaps(
         ax2.set_xlabel("Trình độ học vấn", fontsize=10)
         ax2.set_xticklabels(ax2.get_xticklabels(), rotation=25, ha="right", fontsize=9)
 
-    # 3. Loại thu nhập x Giới tính
+    # 3. Loại thu nhập x Giới tính (Khóa Whitelist 2 chiều: loại bỏ triệt để cột None)
     if "income_gender_rate" in pivots:
-        df3 = pivots["income_gender_rate"]
+        df3 = pivots["income_gender_rate"].copy()
         idx3 = [i for i in major_incomes if i in df3.index]
+        cols3 = [g for g in gender_order if g in df3.columns]
         if idx3:
             df3 = df3.reindex(index=idx3)
+        if cols3:
+            df3 = df3[[c for c in cols3 if c in df3.columns]]
         df3 = df3.dropna(how="all")
         sns.heatmap(
             df3,
@@ -254,9 +279,16 @@ def plot_multivariate_heatmaps(
         ax3.set_ylabel("Nguồn thu nhập chính", fontsize=10)
         ax3.set_xlabel("Giới tính (F: Nữ, M: Nam)", fontsize=10)
 
-    # 4. Loại hợp đồng x Giới tính
+    # 4. Loại hợp đồng x Giới tính (Khóa Whitelist 2 chiều: loại bỏ hàng None và cột None)
     if "contract_gender_rate" in pivots:
-        df4 = pivots["contract_gender_rate"]
+        df4 = pivots["contract_gender_rate"].copy()
+        idx4 = [c for c in contract_order if c in df4.index]
+        cols4 = [g for g in gender_order if g in df4.columns]
+        if idx4:
+            df4 = df4.reindex(index=idx4)
+        if cols4:
+            df4 = df4[[c for c in cols4 if c in df4.columns]]
+        df4 = df4.dropna(how="all")
         sns.heatmap(
             df4,
             annot=True,
@@ -282,6 +314,15 @@ def plot_multivariate_heatmaps(
         fontsize=14,
         fontweight="bold",
         y=0.99,
+    )
+    fig.text(
+        0.5,
+        0.02,
+        "* Chú thích: Ô trống biểu thị không phát sinh dữ liệu (n = 0). Phân khúc thất nghiệp (Unemployed) có cỡ mẫu nhỏ (n = 15) nên tỷ lệ vỡ nợ mang tính chất tham khảo cục bộ.",
+        ha="center",
+        fontsize=10,
+        fontstyle="italic",
+        color="#444444",
     )
 
     if output_path:
