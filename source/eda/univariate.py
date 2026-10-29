@@ -179,7 +179,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1b3c5f",
-        kde_kws=dict(bw_adjust=1.4),
+        kde_kws=dict(bw_adjust=2.0),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax1.axvline(
@@ -209,7 +209,7 @@ def plot_univariate_financial_distributions(
     ax1.spines["top"].set_visible(False)
     ax1.spines["right"].set_visible(False)
 
-    # 2. Thu nhập trên thang đo Logarithm (Log-Income, làm mượt với bw_adjust=1.4)
+    # 2. Thu nhập trên thang đo Logarithm (Log-Income, làm mượt với bw_adjust=2.0)
     log_income = np.log10(income[income > 0])
     sns.histplot(
         log_income,
@@ -219,7 +219,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1d3557",
-        kde_kws=dict(bw_adjust=1.4),
+        kde_kws=dict(bw_adjust=2.0),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax2.axvline(
@@ -257,7 +257,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#0f1d2e",
-        kde_kws=dict(bw_adjust=1.4),
+        kde_kws=dict(bw_adjust=2.0),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax3.axvline(
@@ -303,7 +303,7 @@ def plot_univariate_financial_distributions(
         bins=40,
         stat="density",
         edgecolor="#1d3557",
-        kde_kws=dict(bw_adjust=1.4),
+        kde_kws=dict(bw_adjust=2.0),
         line_kws=dict(linewidth=2, color="#e63946"),
     )
     ax4.axvline(
